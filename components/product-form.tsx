@@ -17,6 +17,7 @@ interface ProductFormData {
   format: string
   quantity_label: string
   description: string
+  target_audience: string
   usage_instructions: string
   contraindications: string
   ingredients: string
@@ -34,6 +35,7 @@ interface Product {
   format: string | null
   quantity_label: string | null
   description: string | null
+  target_audience: string | null
   usage_instructions: string | null
   contraindications: string | null
   ingredients: string | null
@@ -58,6 +60,7 @@ export function ProductForm({ editingProduct, onSuccess, onCancel }: ProductForm
     format: "",
     quantity_label: "",
     description: "",
+    target_audience: "",
     usage_instructions: "",
     contraindications: "",
     ingredients: "",
@@ -79,6 +82,7 @@ export function ProductForm({ editingProduct, onSuccess, onCancel }: ProductForm
         format: editingProduct.format || "",
         quantity_label: editingProduct.quantity_label || "",
         description: editingProduct.description || "",
+        target_audience: editingProduct.target_audience || "",
         usage_instructions: editingProduct.usage_instructions || "",
         contraindications: editingProduct.contraindications || "",
         ingredients: editingProduct.ingredients || "",
@@ -107,6 +111,7 @@ export function ProductForm({ editingProduct, onSuccess, onCancel }: ProductForm
       format: "",
       quantity_label: "",
       description: "",
+      target_audience: "",
       usage_instructions: "",
       contraindications: "",
       ingredients: "",
@@ -286,6 +291,19 @@ export function ProductForm({ editingProduct, onSuccess, onCancel }: ProductForm
                 value={formData.description}
                 onChange={handleChange}
                 rows={3}
+                className="bg-zinc-900 border-zinc-800"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="target_audience">Target Audience</Label>
+              <Textarea
+                id="target_audience"
+                name="target_audience"
+                value={formData.target_audience}
+                onChange={handleChange}
+                rows={2}
+                placeholder="e.g., Athletes, Seniors, Women, etc."
                 className="bg-zinc-900 border-zinc-800"
               />
             </div>
