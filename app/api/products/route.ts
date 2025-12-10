@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
       benefits,
       nutritional_info,
       image_url,
+      target_audience,
     } = body
 
     // Validate required fields
@@ -86,7 +87,8 @@ export async function POST(request: NextRequest) {
         ingredients,
         benefits,
         nutritional_info,
-        image_url
+        image_url,
+        target_audience
       ) VALUES (
         ${name},
         ${slug || null},
@@ -100,7 +102,8 @@ export async function POST(request: NextRequest) {
         ${ingredients || null},
         ${parsedBenefits ? JSON.stringify(parsedBenefits) : null},
         ${parsedNutritionalInfo ? JSON.stringify(parsedNutritionalInfo) : null},
-        ${image_url || null}
+        ${image_url || null},
+        ${target_audience || null}
       )
       RETURNING *
     `

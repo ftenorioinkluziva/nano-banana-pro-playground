@@ -10,6 +10,7 @@ export function NavigationBar() {
   const links = [
     { href: "/", label: "Home" },
     { href: "/products", label: "Products" },
+    { href: "/ugc", label: "UGC Videos" },
   ]
 
   return (

@@ -92,6 +92,7 @@ export async function PUT(
       benefits,
       nutritional_info,
       image_url,
+      target_audience,
     } = body
 
     // Validate required fields
@@ -153,6 +154,7 @@ export async function PUT(
         benefits = ${parsedBenefits ? JSON.stringify(parsedBenefits) : null},
         nutritional_info = ${parsedNutritionalInfo ? JSON.stringify(parsedNutritionalInfo) : null},
         image_url = ${image_url || null},
+        target_audience = ${target_audience || null},
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${Number(id)}
       RETURNING *
