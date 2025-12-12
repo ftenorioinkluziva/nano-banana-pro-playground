@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2, Sparkles, Wand2 } from "lucide-react";
 
 interface Product {
   id: number;
@@ -28,6 +28,9 @@ interface Product {
   description: string;
   image_url: string;
   target_audience: string;
+  category?: string;
+  ingredients?: string;
+  benefits?: any;
 }
 
 interface GenerateVideoDialogProps {
@@ -42,10 +45,48 @@ export default function GenerateVideoDialog({
   onOpenChange,
 }: GenerateVideoDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [generatingScene, setGeneratingScene] = useState(false);
   const [model, setModel] = useState("Nano + Veo 3.1");
   const [videoSetting, setVideoSetting] = useState(
     `A realistic UGC style video of a person using ${product.name} in a casual home environment.`
   );
+
+  const handleGenerateScene = async () => {
+    setGeneratingScene(true);
+
+    try {
+      const response = await fetch("/api/generate-scene-description", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          productName: product.name,
+          description: product.description,
+          targetAudience: product.target_audience,
+          category: product.category,
+          ingredients: product.ingredients,
+          benefits: product.benefits,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setVideoSetting(data.sceneDescription);
+        toast.success("Scene description generated!", {
+          description: "Feel free to edit it before generating the video",
+        });
+      } else {
+        toast.error(data.error || "Failed to generate scene description");
+      }
+    } catch (error) {
+      console.error("Error generating scene:", error);
+      toast.error("Failed to generate scene description");
+    } finally {
+      setGeneratingScene(false);
+    }
+  };
 
   const handleGenerate = async () => {
     setLoading(true);
@@ -141,7 +182,29 @@ export default function GenerateVideoDialog({
 
           {/* Video Setting */}
           <div className="space-y-2">
-            <Label htmlFor="setting">Video Setting / Scene Description</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="setting">Video Setting / Scene Description</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleGenerateScene}
+                disabled={generatingScene || loading}
+                className="h-7"
+              >
+                {generatingScene ? (
+                  <>
+                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="mr-1 h-3 w-3" />
+                    Generate with AI
+                  </>
+                )}
+              </Button>
+            </div>
             <Textarea
               id="setting"
               value={videoSetting}
@@ -150,7 +213,7 @@ export default function GenerateVideoDialog({
               className="min-h-[120px]"
             />
             <p className="text-xs text-muted-foreground">
-              Describe the visual setting and context for the UGC video
+              Describe the visual setting and context for the UGC video, or click "Generate with AI" to auto-create based on product details
             </p>
           </div>
         </div>

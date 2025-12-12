@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
@@ -9,6 +10,8 @@ export function NavigationBar() {
 
   const links = [
     { href: "/", label: "Home" },
+    { href: "/images", label: "Images" },
+    { href: "/videos", label: "Videos" },
     { href: "/products", label: "Products" },
     { href: "/ugc", label: "UGC Videos" },
   ]
@@ -18,8 +21,14 @@ export function NavigationBar() {
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center gap-8">
-            <Link href="/" className="text-lg font-bold text-white">
-              Nano Banana Pro
+            <Link href="/">
+              <Image
+                src="/creato-logo.png"
+                alt="Creato Logo"
+                width={40}
+                height={40}
+                priority
+              />
             </Link>
             <div className="flex gap-6">
               {links.map((link) => (

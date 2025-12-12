@@ -19,22 +19,21 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "Nano Banana Pro Playground - Powered by Vercel AI Gateway",
+  title: "Creato - AI Creative Generation for Content Creators",
   description:
-    "Nano Banana Pro: Google's newest AI image generation model. Create and edit stunning images with advanced AI capabilities through Vercel AI Gateway.",
+    "Creato helps content creators generate high-quality creatives, social media posts, and marketing materials using AI. Powered by Google Gemini 2.0 Flash.",
   keywords: [
-    "nano banana pro",
-    "nano banana",
-    "nb pro",
+    "creato",
+    "AI creative generation",
+    "content creator tools",
     "AI image generation",
-    "AI image editor",
-    "Google AI",
-    "text to image",
-    "AI art generator",
-    "image editing AI",
-    "Google image generation",
-    "v0 nano banana",
-    "Vercel AI Gateway",
+    "social media creatives",
+    "marketing materials AI",
+    "AI ad creator",
+    "content creation tools",
+    "AI for creators",
+    "Google Gemini",
+    "Gemini 2.0 Flash",
   ],
   authors: [{ name: "v0" }],
   creator: "v0",
@@ -48,24 +47,24 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: "https://v0nanobananapro.vercel.app",
-    title: "Nano Banana Pro Playground - Powered by Vercel AI Gateway",
+    title: "Creato - AI Creative Generation for Content Creators",
     description:
-      "Nano Banana Pro: Google's newest AI image generation model. Create and edit stunning images with advanced AI.",
-    siteName: "Nano Banana Pro",
+      "Creato helps content creators generate high-quality creatives, social media posts, and marketing materials using AI.",
+    siteName: "Creato",
     images: [
       {
         url: "/og-image.jpg",
         width: 1200,
         height: 630,
-        alt: "Nano Banana Pro Playground - AI Image Generation",
+        alt: "Creato - AI Creative Generation Platform",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Nano Banana Pro Playground - Powered by Vercel AI Gateway",
+    title: "Creato - AI Creative Generation for Content Creators",
     description:
-      "Nano Banana Pro: Google's newest AI image generation model. Create and edit stunning images with advanced AI.",
+      "Creato helps content creators generate high-quality creatives, social media posts, and marketing materials using AI.",
     creator: "@vercel",
     images: ["/og-image.jpg"],
   },
@@ -103,6 +102,7 @@ export default function RootLayout({
       style={{ backgroundColor: "#000000" }}
     >
       <head>
+        <link rel="icon" href="/creato-logo.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is **Nano Banana Pro Playground**, an AI image generation and editing web application built with Next.js 16. The application uses Google's Gemini 3 Pro Image model via Vercel AI Gateway (@ai-sdk/gateway) to generate images from text prompts and edit/combine existing images.
+This is **Creato**, an AI-powered creative generation platform for content creators built with Next.js 16. The application uses Google's Gemini 2.0 Flash model directly via @ai-sdk/google to help content creators generate high-quality creatives, social media posts, and marketing materials from text prompts and edit/combine existing images.
 
 ## Development Commands
 
@@ -38,7 +38,7 @@ pnpm lint
 2. **API Route**: `/api/generate-image/route.ts` handles both modes:
    - `text-to-image`: Generates images from text prompts only
    - `image-editing`: Edits or combines 1-2 input images based on prompt
-   - Uses Vercel AI Gateway to access Google's Gemini model
+   - Uses Google Gemini 2.0 Flash model directly via @ai-sdk/google
    - Returns base64-encoded images
 
 3. **Custom Hooks** (components/image-combiner/hooks/):
@@ -75,8 +75,10 @@ Built with shadcn/ui (components/ui/) using Radix UI primitives and Tailwind CSS
 Required in `.env.local` or deployment environment:
 
 ```
-AI_GATEWAY_API_KEY=your_vercel_ai_gateway_api_key
+GOOGLE_API_KEY=your_google_api_key
 ```
+
+Get your Google API key from [Google AI Studio](https://ai.google.dev/gemini-api/docs/api-key).
 
 The app checks for this key via `/api/check-api-key` route and displays a warning banner if missing.
 
@@ -99,7 +101,7 @@ The app supports multiple aspect ratios that map to Gemini's supported formats:
 1. User enters prompt and optionally uploads images
 2. Frontend creates Generation object with loading state
 3. API route receives FormData with mode, prompt, aspectRatio, and images
-4. Vercel AI Gateway forwards request to Google Gemini
+4. API directly calls Google Gemini 2.0 Flash via @ai-sdk/google
 5. API returns base64 image
 6. Frontend updates Generation to complete status and persists to IndexedDB
 7. Success sound plays on completion
@@ -136,7 +138,8 @@ TypeScript path aliases are configured via tsconfig.json:
 ## Testing the Application
 
 To test image generation:
-1. Ensure `AI_GATEWAY_API_KEY` is set in environment
-2. Run `pnpm dev`
-3. Enter a text prompt and click Generate (text-to-image mode)
-4. Upload 1-2 images and add prompt to edit/combine (image-editing mode)
+1. Get a Google API key from [Google AI Studio](https://ai.google.dev/gemini-api/docs/api-key)
+2. Add `GOOGLE_API_KEY` to `.env.local` file
+3. Run `pnpm dev`
+4. Enter a text prompt and click Generate (text-to-image mode)
+5. Upload 1-2 images and add prompt to edit/combine (image-editing mode)

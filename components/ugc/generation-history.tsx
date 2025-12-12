@@ -9,6 +9,7 @@ import { Loader2, Clock, CheckCircle2, XCircle, Play, Download, Wifi, WifiOff } 
 import { toast } from "sonner";
 import VideoPlayerDialog from "./video-player-dialog";
 import { useUGCSSE } from "@/hooks/use-ugc-sse";
+import { CenteredSpinner, NoHistoryEmptyState } from "@/components/shared";
 
 interface Generation {
   id: number;
@@ -206,6 +207,7 @@ export default function UGCGenerationHistory() {
               size="sm"
               onClick={() => fetchGenerations()}
               disabled={loading}
+              className="bg-transparent border-gray-600 text-white hover:bg-gray-700"
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -242,14 +244,9 @@ export default function UGCGenerationHistory() {
 
             <TabsContent value={activeTab} className="space-y-4 mt-4">
               {loading && !generations.length ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-8 w-8 animate-spin" />
-                </div>
+                <CenteredSpinner message="Loading generations..." />
               ) : filteredGenerations.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <p>No generations found</p>
-                  <p className="text-sm mt-1">Select a product to start generating videos</p>
-                </div>
+                <NoHistoryEmptyState type="videos" />
               ) : (
                 <div className="space-y-3">
                   {filteredGenerations.map((generation) => (
@@ -308,6 +305,7 @@ export default function UGCGenerationHistory() {
                                 <Button
                                   size="sm"
                                   onClick={() => handlePlayVideo(generation)}
+                                  className="h-10 text-sm font-semibold !bg-white !text-black hover:!bg-gray-200"
                                 >
                                   <Play className="h-4 w-4 mr-1" />
                                   Play
@@ -316,6 +314,7 @@ export default function UGCGenerationHistory() {
                                   size="sm"
                                   variant="outline"
                                   onClick={() => handleDownloadVideo(generation)}
+                                  className="bg-transparent border-gray-600 text-white hover:bg-gray-700"
                                 >
                                   <Download className="h-4 w-4 mr-1" />
                                   Download

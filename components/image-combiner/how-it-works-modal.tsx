@@ -18,52 +18,51 @@ export function HowItWorksModal({ open, onOpenChange }: HowItWorksModalProps) {
           <div className="bg-teal-500/10 border border-teal-500/20 rounded-lg p-4">
             <h3 className="text-lg font-semibold text-teal-400 mb-2">Setup Required</h3>
             <p className="leading-relaxed mb-3">
-              To use this playground, you need to add your Vercel AI Gateway API key as an environment variable:
+              To use Creato, you need to add your Google API key as an environment variable:
             </p>
             <ol className="list-decimal list-inside space-y-2 ml-2">
               <li>
                 Get your API key from{" "}
                 <a
-                  href="https://vercel.com/ai-gateway"
+                  href="https://ai.google.dev/gemini-api/docs/api-key"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-teal-400 hover:text-teal-300 underline"
                 >
-                  Vercel AI Gateway
+                  Google AI Studio
                 </a>
               </li>
               <li>
                 Add the environment variable{" "}
-                <code className="px-1.5 py-0.5 bg-white/10 rounded text-xs">AI_GATEWAY_API_KEY</code> to your project
+                <code className="px-1.5 py-0.5 bg-white/10 rounded text-xs">GOOGLE_API_KEY</code> to your project
               </li>
-              <li>Publish or Deploy</li>
+              <li>Restart or Deploy</li>
             </ol>
           </div>
           {/* </CHANGE> */}
 
           <div>
-            <h3 className="text-lg font-semibold text-white mb-2">About Nano Banana Pro</h3>
+            <h3 className="text-lg font-semibold text-white mb-2">About Creato</h3>
             <p className="leading-relaxed">
-              Nano Banana Pro is Google's newest and most advanced AI image generation model. Built on cutting-edge
-              diffusion technology, it delivers exceptional quality, speed, and creative control for both text-to-image
-              generation and intelligent image editing. All generations are processed through the{" "}
+              Creato is an AI-powered creative generation platform designed for content creators. Built on{" "}
               <a
-                href="https://vercel.com/ai-gateway"
+                href="https://ai.google.dev/gemini-api"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-teal-400 hover:text-teal-300 underline"
               >
-                Vercel AI Gateway
+                Google Gemini 2.0 Flash
               </a>
-              , providing enterprise-grade reliability and performance.
+              , it helps you create high-quality creatives, social media posts, and marketing materials
+              with speed and creative control. Direct integration with Google's API provides fast and reliable image generation.
             </p>
           </div>
 
           <div>
             <h3 className="text-lg font-semibold text-white mb-2">Text-to-Image Generation</h3>
             <p className="leading-relaxed">
-              Simply describe what you want to create in the prompt box and click Run. Nano Banana Pro will generate
-              high-quality, photorealistic images from your text descriptions in seconds.
+              Simply describe what you want to create in the prompt box and click Run. Creato will generate
+              high-quality, professional creatives from your text descriptions in seconds.
             </p>
           </div>
 

@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { ProductForm } from "@/components/product-form"
 import { ProductList } from "@/components/product-list"
+import { AppErrorBoundary } from "@/components/shared"
 
 interface Product {
   id: number
@@ -46,15 +47,17 @@ export default function ProductsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black py-8 px-4">
-      <div className="max-w-7xl mx-auto space-y-8">
-        <ProductForm
-          editingProduct={editingProduct}
-          onSuccess={handleSuccess}
-          onCancel={handleCancel}
-        />
-        <ProductList onEdit={handleEdit} refreshTrigger={refreshTrigger} />
+    <AppErrorBoundary>
+      <div className="min-h-screen bg-black py-8 px-4">
+        <div className="max-w-7xl mx-auto space-y-8">
+          <ProductForm
+            editingProduct={editingProduct}
+            onSuccess={handleSuccess}
+            onCancel={handleCancel}
+          />
+          <ProductList onEdit={handleEdit} refreshTrigger={refreshTrigger} />
+        </div>
       </div>
-    </div>
+    </AppErrorBoundary>
   )
 }

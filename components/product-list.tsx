@@ -23,6 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { CenteredSpinner, NoProductsEmptyState } from "@/components/shared"
 
 interface Product {
   id: number
@@ -109,9 +110,9 @@ export function ProductList({ onEdit, refreshTrigger }: ProductListProps) {
 
   if (isLoading) {
     return (
-      <Card className="w-full bg-zinc-950 border-zinc-800">
+      <Card className="w-full bg-black/50 border-gray-800">
         <CardContent className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
+          <CenteredSpinner message="Loading products..." />
         </CardContent>
       </Card>
     )
@@ -119,20 +120,18 @@ export function ProductList({ onEdit, refreshTrigger }: ProductListProps) {
 
   return (
     <>
-      <Card className="w-full bg-zinc-950 border-zinc-800">
+      <Card className="w-full bg-black/50 border-gray-800">
         <CardHeader>
           <CardTitle className="text-2xl text-white">Products List</CardTitle>
         </CardHeader>
         <CardContent>
           {products.length === 0 ? (
-            <div className="text-center py-12 text-zinc-400">
-              No products found. Create your first product above.
-            </div>
+            <NoProductsEmptyState />
           ) : (
-            <div className="rounded-md border border-zinc-800 overflow-hidden">
+            <div className="rounded-md border border-gray-800 overflow-hidden">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-zinc-800 hover:bg-zinc-900">
+                  <TableRow className="border-gray-800 hover:bg-gray-700">
                     <TableHead className="text-zinc-300">Name</TableHead>
                     <TableHead className="text-zinc-300">Category</TableHead>
                     <TableHead className="text-zinc-300">Price</TableHead>
@@ -142,7 +141,7 @@ export function ProductList({ onEdit, refreshTrigger }: ProductListProps) {
                 </TableHeader>
                 <TableBody>
                   {products.map((product) => (
-                    <TableRow key={product.id} className="border-zinc-800 hover:bg-zinc-900">
+                    <TableRow key={product.id} className="border-gray-800 hover:bg-gray-700">
                       <TableCell className="font-medium text-white">
                         <div className="flex items-center gap-3">
                           {product.image_url && (
@@ -175,7 +174,7 @@ export function ProductList({ onEdit, refreshTrigger }: ProductListProps) {
                             variant="ghost"
                             size="sm"
                             onClick={() => onEdit(product)}
-                            className="hover:bg-zinc-800"
+                            className="hover:bg-gray-700"
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
@@ -199,7 +198,7 @@ export function ProductList({ onEdit, refreshTrigger }: ProductListProps) {
       </Card>
 
       <AlertDialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
-        <AlertDialogContent className="bg-zinc-950 border-zinc-800">
+        <AlertDialogContent className="bg-black border-gray-800">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white">Are you sure?</AlertDialogTitle>
             <AlertDialogDescription className="text-zinc-400">
@@ -209,7 +208,7 @@ export function ProductList({ onEdit, refreshTrigger }: ProductListProps) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel
-              className="bg-zinc-900 border-zinc-800 text-white hover:bg-zinc-800"
+              className="bg-transparent border-gray-600 text-white hover:bg-gray-700"
               disabled={isDeleting}
             >
               Cancel

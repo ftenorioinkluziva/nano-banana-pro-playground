@@ -1,7 +1,7 @@
 {
-  "name": "Nano Banana Pro",
-  "short_name": "NB Pro",
-  "description": "AI-powered image generation and editing tool",
+  "name": "Creato",
+  "short_name": "Creato",
+  "description": "AI creative generation platform for content creators",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#000000",

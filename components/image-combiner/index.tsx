@@ -3,13 +3,13 @@
 import type React from "react"
 
 import { useState, useEffect, useRef, useCallback, memo } from "react"
-import { Dithering } from "@paper-design/shaders-react"
 import { useMobile } from "@/hooks/use-mobile"
 import { useImageUpload } from "./hooks/use-image-upload"
 import { useImageGeneration } from "./hooks/use-image-generation"
 import { useAspectRatio } from "./hooks/use-aspect-ratio"
+import { usePromptEnhancement } from "./hooks/use-prompt-enhancement"
 import { HowItWorksModal } from "./how-it-works-modal"
-import { usePersistentHistory } from "./hooks/use-persistent-history"
+import { useDatabaseHistory } from "./hooks/use-database-history"
 import { InputSection } from "./input-section"
 import { OutputSection } from "./output-section"
 import { ToastNotification } from "./toast-notification"
@@ -19,11 +19,24 @@ import { FullscreenViewer } from "./fullscreen-viewer"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ApiKeyWarning } from "@/components/api-key-warning"
 
-const MemoizedDithering = memo(Dithering)
+const AVAILABLE_MODELS = [
+  {
+    value: "gemini-2.5-flash-image",
+    label: "Gemini 2.5 Flash",
+    description: "Stable - Best for production",
+  },
+  {
+    value: "gemini-3-pro-image-preview",
+    label: "Gemini 3 Pro (Preview)",
+    description: "Latest model - May have bugs",
+  },
+] as const
 
 export function ImageCombiner() {
   const isMobile = useMobile()
   const [prompt, setPrompt] = useState("A beautiful landscape with mountains and a lake at sunset")
+  const [selectedModel, setSelectedModel] = useState("gemini-2.5-flash-image")
+  const [numberOfImages, setNumberOfImages] = useState(1)
   const [useUrls, setUseUrls] = useState(false)
   const [showFullscreen, setShowFullscreen] = useState(false)
   const [fullscreenImageUrl, setFullscreenImageUrl] = useState("")
@@ -34,6 +47,9 @@ export function ImageCombiner() {
   const [showHowItWorks, setShowHowItWorks] = useState(false)
   const [logoLoaded, setLogoLoaded] = useState(false)
   const [apiKeyMissing, setApiKeyMissing] = useState(false)
+  const [products, setProducts] = useState<any[]>([])
+  const [selectedProduct, setSelectedProduct] = useState<any | null>(null)
+  const [loadingProducts, setLoadingProducts] = useState(false)
 
   const [leftWidth, setLeftWidth] = useState(50) // percentage
   const [isResizing, setIsResizing] = useState(false)
@@ -63,6 +79,10 @@ export function ImageCombiner() {
 
   const { aspectRatio, setAspectRatio, availableAspectRatios, detectAspectRatio } = useAspectRatio()
 
+  const { isEnhancing, enhancedPrompt, imageAnalysis, enhancePrompt, applyEnhancedPrompt, clearEnhancedPrompt } = usePromptEnhancement({
+    onToast: showToast,
+  })
+
   const {
     generations: persistedGenerations,
     setGenerations: setPersistedGenerations,
@@ -73,7 +93,8 @@ export function ImageCombiner() {
     hasMore,
     loadMore,
     isLoadingMore,
-  } = usePersistentHistory(showToast)
+    isSyncing,
+  } = useDatabaseHistory(showToast)
 
   const {
     selectedGenerationId,
@@ -86,6 +107,8 @@ export function ImageCombiner() {
   } = useImageGeneration({
     prompt,
     aspectRatio,
+    selectedModel,
+    numberOfImages,
     image1,
     image2,
     image1Url,
@@ -117,6 +140,16 @@ export function ImageCombiner() {
     }
   }, [selectedGenerationId, selectedGeneration?.imageUrl, setImageLoaded])
 
+  // Ensure selectedGenerationId is always valid
+  useEffect(() => {
+    if (persistedGenerations.length > 0) {
+      // If selectedGenerationId is null or doesn't exist in persistedGenerations, select the first one
+      if (!selectedGenerationId || !persistedGenerations.find((g) => g.id === selectedGenerationId)) {
+        setSelectedGenerationId(persistedGenerations[0].id)
+      }
+    }
+  }, [persistedGenerations, selectedGenerationId, setSelectedGenerationId])
+
   useEffect(() => {
     uploadShowToast.current = showToast
   }, [uploadShowToast])
@@ -135,6 +168,51 @@ export function ImageCombiner() {
     }
 
     checkApiKey()
+  }, [])
+
+  // Fetch products
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoadingProducts(true)
+        const response = await fetch("/api/products")
+        const data = await response.json()
+        setProducts(data.products || [])
+      } catch (error) {
+        console.error("Error fetching products:", error)
+        showToast("Failed to load products", "error")
+      } finally {
+        setLoadingProducts(false)
+      }
+    }
+
+    fetchProducts()
+  }, [])
+
+  // Handle product selection
+  const handleProductSelect = useCallback((productId: string) => {
+    const product = products.find((p) => p.id.toString() === productId)
+    setSelectedProduct(product || null)
+
+    if (product) {
+      // Enrich prompt with product information
+      const productContext = `Product: ${product.name}${product.description ? `\nDescription: ${product.description}` : ""}${product.target_audience ? `\nTarget Audience: ${product.target_audience}` : ""}${product.category ? `\nCategory: ${product.category}` : ""}`
+
+      // If prompt is empty or is the default, replace it with product context
+      if (!prompt || prompt === "A beautiful landscape with mountains and a lake at sunset") {
+        setPrompt(productContext)
+      } else {
+        // Otherwise, append product context
+        setPrompt(`${prompt}\n\n${productContext}`)
+      }
+
+      showToast(`Product "${product.name}" selected`, "success")
+    }
+  }, [products, prompt])
+
+  const handleClearProduct = useCallback(() => {
+    setSelectedProduct(null)
+    showToast("Product cleared", "success")
   }, [])
   // </CHANGE>
 
@@ -166,7 +244,7 @@ export function ImageCombiner() {
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement("a")
       link.href = url
-      link.download = `nano-banana-pro-${currentMode}-result.png`
+      link.download = `creato-${currentMode}-result.png`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
@@ -616,10 +694,10 @@ export function ImageCombiner() {
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "WebApplication",
-            name: "Nano Banana Pro",
-            alternateName: "NB Pro",
+            name: "Creato",
+            alternateName: "Creato",
             description:
-              "Nano Banana Pro is a powerful AI image generation and editing tool powered by Google Gemini 2.5 Flash Image. Create, edit, and transform images with natural language prompts.",
+              "Creato is an AI-powered creative generation platform for content creators. Generate high-quality creatives, social media posts, and marketing materials using Google Gemini AI.",
             url: "https://v0nanobananapro.vercel.app",
             applicationCategory: "MultimediaApplication",
             operatingSystem: "Web Browser",
@@ -634,7 +712,7 @@ export function ImageCombiner() {
               url: "https://v0.app",
             },
             keywords:
-              "nano banana pro, nb pro, AI image generation, AI image editor, free AI image generator, text to image, Gemini image generation",
+              "creato, AI creative generation, content creator tools, AI image generation, social media creatives, marketing materials AI, text to image, Gemini image generation",
           }),
         }}
       />
@@ -645,22 +723,7 @@ export function ImageCombiner() {
         <GlobalDropZone dropZoneHover={dropZoneHover} onSetDropZoneHover={setDropZoneHover} onDrop={handleGlobalDrop} />
       )}
 
-      <div className="fixed inset-x-0 top-16 bottom-0 z-0 select-none shader-background bg-black">
-        <MemoizedDithering
-          colorBack="#00000000"
-          colorFront="#005B5B"
-          speed={0.43}
-          shape="wave"
-          type="4x4"
-          pxSize={3}
-          scale={1.13}
-          style={{
-            backgroundColor: "#000000",
-            height: "100vh",
-            width: "100vw",
-          }}
-        />
-      </div>
+      <div className="fixed inset-x-0 top-16 bottom-0 z-0 select-none bg-black" />
 
       <div className="relative z-10 w-full h-full flex items-center justify-center p-2 md:p-4">
         <div className="w-full max-w-[98vw] lg:max-w-[96vw] 2xl:max-w-[94vw]">
@@ -678,19 +741,17 @@ export function ImageCombiner() {
                     onLoad={() => setLogoLoaded(true)}
                   />
                   <h1 className="text-lg md:text-2xl font-bold text-white select-none leading-none">
-                    <div className="md:hidden">Nano</div>
-                    <div className="md:hidden mt-0.5">Banana Pro</div>
-                    <div className="hidden md:block">Nano Banana Pro</div>
+                    <div>Creato</div>
                   </h1>
                   <p className="text-[9px] md:text-[10px] text-gray-400 select-none tracking-wide mt-0.5 md:mt-1">
-                    Playground by{" "}
+                    Powered by{" "}
                     <a
-                      href="https://vercel.com/ai-gateway"
+                      href="https://ai.google.dev/gemini-api"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="hover:text-gray-300 transition-colors"
                     >
-                      Vercel AI Gateway
+                      Google Gemini 2.0
                     </a>
                   </p>
                 </div>
@@ -712,6 +773,11 @@ export function ImageCombiner() {
                     <InputSection
                       prompt={prompt}
                       setPrompt={setPrompt}
+                      selectedModel={selectedModel}
+                      setSelectedModel={setSelectedModel}
+                      availableModels={AVAILABLE_MODELS}
+                      numberOfImages={numberOfImages}
+                      setNumberOfImages={setNumberOfImages}
                       aspectRatio={aspectRatio}
                       setAspectRatio={setAspectRatio}
                       availableAspectRatios={availableAspectRatios}
@@ -742,6 +808,22 @@ export function ImageCombiner() {
                       hasMore={hasMore}
                       onLoadMore={loadMore}
                       isLoadingMore={isLoadingMore}
+                      isEnhancing={isEnhancing}
+                      enhancedPrompt={enhancedPrompt}
+                      imageAnalysis={imageAnalysis}
+                      image1={image1}
+                      image1Url={image1Url}
+                      image2={image2}
+                      image2Url={image2Url}
+                      useUrls={useUrls}
+                      onEnhancePrompt={enhancePrompt}
+                      onApplyEnhancedPrompt={applyEnhancedPrompt}
+                      onClearEnhancedPrompt={clearEnhancedPrompt}
+                      products={products}
+                      selectedProduct={selectedProduct}
+                      loadingProducts={loadingProducts}
+                      onProductSelect={handleProductSelect}
+                      onClearProduct={handleClearProduct}
                     />
                     {/* </CHANGE> */}
 

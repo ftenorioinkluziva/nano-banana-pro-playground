@@ -4,11 +4,23 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Video, Clock, CheckCircle2, XCircle, Sparkles } from "lucide-react";
+import { Video, Sparkles } from "lucide-react";
 import UGCGenerationHistory from "@/components/ugc/generation-history";
 import GenerateVideoDialog from "@/components/ugc/generate-video-dialog";
+import {
+  AppErrorBoundary,
+  CenteredSpinner,
+  NoProductsEmptyState,
+} from "@/components/shared";
 
 interface Product {
   id: number;
@@ -16,13 +28,16 @@ interface Product {
   description: string;
   image_url: string;
   target_audience: string;
-  category: string;
-  price: number;
+  category?: string;
+  price?: number;
+  ingredients?: string;
+  benefits?: any;
 }
 
 export default function UGCPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedProductId, setSelectedProductId] = useState<string>("");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showDialog, setShowDialog] = useState(false);
 
@@ -43,21 +58,32 @@ export default function UGCPage() {
     }
   };
 
-  const handleGenerateClick = (product: Product) => {
-    setSelectedProduct(product);
-    setShowDialog(true);
+  const handleProductSelect = (productId: string) => {
+    setSelectedProductId(productId);
+    const product = products.find((p) => p.id.toString() === productId);
+    setSelectedProduct(product || null);
+  };
+
+  const handleGenerateClick = () => {
+    if (selectedProduct) {
+      setShowDialog(true);
+    }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
+      <AppErrorBoundary>
+        <div className="flex items-center justify-center min-h-screen bg-black">
+          <CenteredSpinner message="Loading products..." />
+        </div>
+      </AppErrorBoundary>
     );
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-7xl">
+    <AppErrorBoundary>
+      <div className="min-h-screen bg-black">
+        <div className="container mx-auto py-8 px-4 max-w-7xl">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-4xl font-bold mb-2 flex items-center gap-2">
@@ -70,62 +96,73 @@ export default function UGCPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Products List */}
+        {/* Product Selection */}
         <div className="lg:col-span-1">
           <Card>
             <CardHeader>
-              <CardTitle>Products</CardTitle>
-              <CardDescription>Select a product to generate UGC video</CardDescription>
+              <CardTitle>Select Product</CardTitle>
+              <CardDescription>Choose a product to generate UGC video</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-4">
               {products.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">
-                  No products found. Create a product first.
-                </p>
+                <NoProductsEmptyState />
               ) : (
-                products.map((product) => (
-                  <Card
-                    key={product.id}
-                    className="cursor-pointer hover:border-primary transition-colors"
-                    onClick={() => handleGenerateClick(product)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
-                        {product.image_url && (
-                          <img
-                            src={product.image_url}
-                            alt={product.name}
-                            className="w-16 h-16 object-cover rounded"
-                          />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-sm truncate">
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="product-select">Product</Label>
+                    <Select value={selectedProductId} onValueChange={handleProductSelect}>
+                      <SelectTrigger id="product-select">
+                        <SelectValue placeholder="Select a product..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {products.map((product) => (
+                          <SelectItem key={product.id} value={product.id.toString()}>
                             {product.name}
-                          </h3>
-                          <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
-                            {product.description}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {selectedProduct && (
+                    <div className="space-y-4 pt-4 border-t">
+                      {/* Product Preview */}
+                      {selectedProduct.image_url && (
+                        <img
+                          src={selectedProduct.image_url}
+                          alt={selectedProduct.name}
+                          className="w-full h-48 object-cover rounded-lg"
+                        />
+                      )}
+
+                      <div>
+                        <h3 className="font-semibold text-lg">{selectedProduct.name}</h3>
+                        {selectedProduct.description && (
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {selectedProduct.description}
                           </p>
-                          {product.target_audience && (
-                            <Badge variant="secondary" className="mt-2 text-xs">
-                              {product.target_audience}
-                            </Badge>
-                          )}
-                        </div>
+                        )}
                       </div>
+
+                      {selectedProduct.target_audience && (
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Target Audience</Label>
+                          <Badge variant="secondary" className="mt-1">
+                            {selectedProduct.target_audience}
+                          </Badge>
+                        </div>
+                      )}
+
                       <Button
-                        size="sm"
-                        className="w-full mt-3"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleGenerateClick(product);
-                        }}
+                        className="w-full h-10 md:h-12 text-sm md:text-base font-semibold !bg-white !text-black hover:!bg-gray-200"
+                        onClick={handleGenerateClick}
                       >
                         <Sparkles className="h-4 w-4 mr-2" />
                         Generate Video
                       </Button>
-                    </CardContent>
-                  </Card>
-                ))
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
@@ -145,6 +182,8 @@ export default function UGCPage() {
           onOpenChange={setShowDialog}
         />
       )}
-    </div>
+        </div>
+      </div>
+    </AppErrorBoundary>
   );
 }

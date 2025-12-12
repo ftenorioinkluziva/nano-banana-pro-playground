@@ -166,7 +166,7 @@ export function ProductForm({ editingProduct, onSuccess, onCancel }: ProductForm
   }
 
   return (
-    <Card className="w-full max-w-4xl mx-auto bg-zinc-950 border-zinc-800">
+    <Card className="w-full max-w-4xl mx-auto bg-black/50 border-gray-800">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-2xl text-white">
@@ -177,7 +177,7 @@ export function ProductForm({ editingProduct, onSuccess, onCancel }: ProductForm
               variant="ghost"
               size="icon"
               onClick={handleReset}
-              className="hover:bg-zinc-800"
+              className="hover:bg-gray-700"
             >
               <X className="h-5 w-5" />
             </Button>
@@ -199,7 +199,7 @@ export function ProductForm({ editingProduct, onSuccess, onCancel }: ProductForm
                   value={formData.name}
                   onChange={handleChange}
                   required
-                  className="bg-zinc-900 border-zinc-800"
+                  className="bg-black border-gray-800"
                 />
               </div>
 
@@ -211,7 +211,7 @@ export function ProductForm({ editingProduct, onSuccess, onCancel }: ProductForm
                   value={formData.slug}
                   onChange={handleChange}
                   placeholder="product-name"
-                  className="bg-zinc-900 border-zinc-800"
+                  className="bg-black border-gray-800"
                 />
               </div>
 
@@ -225,7 +225,7 @@ export function ProductForm({ editingProduct, onSuccess, onCancel }: ProductForm
                   value={formData.price}
                   onChange={handleChange}
                   placeholder="0.00"
-                  className="bg-zinc-900 border-zinc-800"
+                  className="bg-black border-gray-800"
                 />
               </div>
 
@@ -236,7 +236,7 @@ export function ProductForm({ editingProduct, onSuccess, onCancel }: ProductForm
                   name="category"
                   value={formData.category}
                   onChange={handleChange}
-                  className="bg-zinc-900 border-zinc-800"
+                  className="bg-black border-gray-800"
                 />
               </div>
 
@@ -248,7 +248,7 @@ export function ProductForm({ editingProduct, onSuccess, onCancel }: ProductForm
                   value={formData.format}
                   onChange={handleChange}
                   placeholder="e.g., Capsules, Powder"
-                  className="bg-zinc-900 border-zinc-800"
+                  className="bg-black border-gray-800"
                 />
               </div>
 
@@ -260,7 +260,7 @@ export function ProductForm({ editingProduct, onSuccess, onCancel }: ProductForm
                   value={formData.quantity_label}
                   onChange={handleChange}
                   placeholder="e.g., 60 capsules"
-                  className="bg-zinc-900 border-zinc-800"
+                  className="bg-black border-gray-800"
                 />
               </div>
             </div>
@@ -274,7 +274,7 @@ export function ProductForm({ editingProduct, onSuccess, onCancel }: ProductForm
                 value={formData.image_url}
                 onChange={handleChange}
                 placeholder="https://example.com/image.jpg"
-                className="bg-zinc-900 border-zinc-800"
+                className="bg-black border-gray-800"
               />
             </div>
           </div>
@@ -291,7 +291,7 @@ export function ProductForm({ editingProduct, onSuccess, onCancel }: ProductForm
                 value={formData.description}
                 onChange={handleChange}
                 rows={3}
-                className="bg-zinc-900 border-zinc-800"
+                className="bg-black border-gray-800"
               />
             </div>
 
@@ -304,7 +304,7 @@ export function ProductForm({ editingProduct, onSuccess, onCancel }: ProductForm
                 onChange={handleChange}
                 rows={2}
                 placeholder="e.g., Athletes, Seniors, Women, etc."
-                className="bg-zinc-900 border-zinc-800"
+                className="bg-black border-gray-800"
               />
             </div>
 
@@ -316,7 +316,7 @@ export function ProductForm({ editingProduct, onSuccess, onCancel }: ProductForm
                 value={formData.ingredients}
                 onChange={handleChange}
                 rows={3}
-                className="bg-zinc-900 border-zinc-800"
+                className="bg-black border-gray-800"
               />
             </div>
 
@@ -328,7 +328,7 @@ export function ProductForm({ editingProduct, onSuccess, onCancel }: ProductForm
                 value={formData.usage_instructions}
                 onChange={handleChange}
                 rows={3}
-                className="bg-zinc-900 border-zinc-800"
+                className="bg-black border-gray-800"
               />
             </div>
 
@@ -340,7 +340,7 @@ export function ProductForm({ editingProduct, onSuccess, onCancel }: ProductForm
                 value={formData.contraindications}
                 onChange={handleChange}
                 rows={3}
-                className="bg-zinc-900 border-zinc-800"
+                className="bg-black border-gray-800"
               />
             </div>
           </div>
@@ -358,7 +358,7 @@ export function ProductForm({ editingProduct, onSuccess, onCancel }: ProductForm
                 onChange={handleChange}
                 rows={3}
                 placeholder='{"benefit1": "value", "benefit2": "value"}'
-                className="bg-zinc-900 border-zinc-800 font-mono text-sm"
+                className="bg-black border-gray-800 font-mono text-sm"
               />
             </div>
 
@@ -371,7 +371,7 @@ export function ProductForm({ editingProduct, onSuccess, onCancel }: ProductForm
                 onChange={handleChange}
                 rows={3}
                 placeholder='{"calories": 100, "protein": "5g"}'
-                className="bg-zinc-900 border-zinc-800 font-mono text-sm"
+                className="bg-black border-gray-800 font-mono text-sm"
               />
             </div>
           </div>
@@ -382,7 +382,7 @@ export function ProductForm({ editingProduct, onSuccess, onCancel }: ProductForm
                 type="button"
                 variant="outline"
                 onClick={handleReset}
-                className="flex-1 border-zinc-800 hover:bg-zinc-800"
+                className="flex-1 bg-transparent border-gray-600 text-white hover:bg-gray-700"
               >
                 Cancel
               </Button>
@@ -390,7 +390,7 @@ export function ProductForm({ editingProduct, onSuccess, onCancel }: ProductForm
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1"
+              className="flex-1 h-10 md:h-12 text-sm md:text-base font-semibold !bg-white !text-black hover:!bg-gray-200 disabled:opacity-50"
             >
               {isSubmitting
                 ? isEditMode

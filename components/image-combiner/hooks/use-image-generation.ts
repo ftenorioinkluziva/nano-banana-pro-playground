@@ -8,6 +8,8 @@ import type { Generation } from "../types"
 interface UseImageGenerationProps {
   prompt: string
   aspectRatio: string
+  selectedModel: string
+  numberOfImages: number
   image1: File | null
   image2: File | null
   image1Url: string
@@ -24,6 +26,7 @@ interface UseImageGenerationProps {
 interface GenerateImageOptions {
   prompt?: string
   aspectRatio?: string
+  selectedModel?: string
   image1?: File | null
   image2?: File | null
   image1Url?: string
@@ -56,6 +59,8 @@ const playSuccessSound = () => {
 export function useImageGeneration({
   prompt,
   aspectRatio,
+  selectedModel,
+  numberOfImages,
   image1,
   image2,
   image1Url,
@@ -90,6 +95,7 @@ export function useImageGeneration({
   const generateImage = async (options?: GenerateImageOptions) => {
     const effectivePrompt = options?.prompt ?? prompt
     const effectiveAspectRatio = options?.aspectRatio ?? aspectRatio
+    const effectiveSelectedModel = options?.selectedModel ?? selectedModel
     const effectiveImage1 = options?.image1 !== undefined ? options.image1 : image1
     const effectiveImage2 = options?.image2 !== undefined ? options.image2 : image2
     const effectiveImage1Url = options?.image1Url !== undefined ? options.image1Url : image1Url
@@ -166,6 +172,8 @@ export function useImageGeneration({
           formData.append("mode", currentMode)
           formData.append("prompt", effectivePrompt)
           formData.append("aspectRatio", effectiveAspectRatio)
+          formData.append("model", effectiveSelectedModel)
+          formData.append("numberOfImages", numberOfImages.toString())
 
           if (currentMode === "image-editing") {
             if (effectiveUseUrls) {
@@ -192,7 +200,7 @@ export function useImageGeneration({
           if (!response.ok) {
             const errorData = await response.json().catch(() => ({ error: "Unknown error" }))
 
-            if (errorData.error === "Configuration error" && errorData.details?.includes("AI_GATEWAY_API_KEY")) {
+            if (errorData.error === "Configuration error" && errorData.details?.includes("GOOGLE_API_KEY")) {
               clearInterval(progressInterval)
               setGenerations((prev) => prev.filter((gen) => gen.id !== generationId))
               onApiKeyMissing?.()
@@ -253,11 +261,33 @@ export function useImageGeneration({
 
   const loadGeneratedAsInput = async () => {
     const selectedGeneration = generations.find((g) => g.id === selectedGenerationId)
-    if (!selectedGeneration?.imageUrl) return
+
+    if (!selectedGeneration?.imageUrl) {
+      onToast("No image selected", "error")
+      return
+    }
 
     try {
-      const response = await fetch(selectedGeneration.imageUrl)
-      const blob = await response.blob()
+      let blob: Blob
+
+      // Check if it's a data URL
+      if (selectedGeneration.imageUrl.startsWith("data:")) {
+        // Convert data URL to blob
+        const arr = selectedGeneration.imageUrl.split(",")
+        const mime = arr[0].match(/:(.*?);/)?.[1] || "image/png"
+        const bstr = atob(arr[1])
+        const n = bstr.length
+        const u8arr = new Uint8Array(n)
+        for (let i = 0; i < n; i++) {
+          u8arr[i] = bstr.charCodeAt(i)
+        }
+        blob = new Blob([u8arr], { type: mime })
+      } else {
+        // It's a regular URL, fetch it
+        const response = await fetch(selectedGeneration.imageUrl)
+        blob = await response.blob()
+      }
+
       const file = new File([blob], "generated-image.png", { type: "image/png" })
 
       await onImageUpload(file, 1)
