@@ -24,17 +24,30 @@ export function VideoResult({
     }
   }
 
+  // Map aspect ratio to Tailwind class
+  const getAspectRatioClass = (aspectRatio: string) => {
+    const ratioMap: Record<string, string> = {
+      "16:9": "aspect-video",
+      "9:16": "aspect-[9/16]",
+      "1:1": "aspect-square",
+      "4:3": "aspect-[4/3]",
+      "3:4": "aspect-[3/4]",
+      "21:9": "aspect-[21/9]",
+    }
+    return ratioMap[aspectRatio] || "aspect-video"
+  }
+
   return (
     <div className="w-full max-w-2xl mx-auto space-y-6">
       {/* Video Display */}
       <div className="space-y-2">
         <h3 className="text-lg font-semibold text-white">Generated Video</h3>
-        <div className="bg-black rounded-lg overflow-hidden border border-gray-800 aspect-video flex items-center justify-center">
+        <div className={`bg-black rounded-lg overflow-hidden border border-gray-800 ${getAspectRatioClass(video.aspect_ratio)} flex items-center justify-center mx-auto max-w-full`}>
           {video.video_url || video.video_uri ? (
             <video
               src={video.video_url || video.video_uri}
               controls
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
             />
           ) : (
             <p className="text-zinc-400">Video URL not available</p>

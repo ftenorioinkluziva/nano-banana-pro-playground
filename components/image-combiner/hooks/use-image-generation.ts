@@ -8,8 +8,8 @@ import type { Generation } from "../types"
 interface UseImageGenerationProps {
   prompt: string
   aspectRatio: string
-  selectedModel: string
-  numberOfImages: number
+  resolution: "1K" | "2K" | "4K"
+  outputFormat: "PNG" | "JPG"
   image1: File | null
   image2: File | null
   image1Url: string
@@ -59,8 +59,8 @@ const playSuccessSound = () => {
 export function useImageGeneration({
   prompt,
   aspectRatio,
-  selectedModel,
-  numberOfImages,
+  resolution,
+  outputFormat,
   image1,
   image2,
   image1Url,
@@ -95,7 +95,6 @@ export function useImageGeneration({
   const generateImage = async (options?: GenerateImageOptions) => {
     const effectivePrompt = options?.prompt ?? prompt
     const effectiveAspectRatio = options?.aspectRatio ?? aspectRatio
-    const effectiveSelectedModel = options?.selectedModel ?? selectedModel
     const effectiveImage1 = options?.image1 !== undefined ? options.image1 : image1
     const effectiveImage2 = options?.image2 !== undefined ? options.image2 : image2
     const effectiveImage1Url = options?.image1Url !== undefined ? options.image1Url : image1Url
@@ -103,16 +102,7 @@ export function useImageGeneration({
     const effectiveUseUrls = options?.useUrls !== undefined ? options.useUrls : useUrls
 
     const hasImages = effectiveUseUrls ? effectiveImage1Url || effectiveImage2Url : effectiveImage1 || effectiveImage2
-    const currentMode = hasImages ? "image-editing" : "text-to-image"
 
-    if (currentMode === "image-editing" && !effectiveUseUrls && !effectiveImage1) {
-      onToast("Please upload at least one image for editing mode", "error")
-      return
-    }
-    if (currentMode === "image-editing" && effectiveUseUrls && !effectiveImage1Url) {
-      onToast("Please provide at least one image URL for editing mode", "error")
-      return
-    }
     if (!effectivePrompt.trim()) {
       onToast("Please enter a prompt", "error")
       return
@@ -169,15 +159,17 @@ export function useImageGeneration({
       const generationPromise = (async () => {
         try {
           const formData = new FormData()
-          formData.append("mode", currentMode)
           formData.append("prompt", effectivePrompt)
           formData.append("aspectRatio", effectiveAspectRatio)
-          formData.append("model", effectiveSelectedModel)
-          formData.append("numberOfImages", numberOfImages.toString())
+          formData.append("resolution", resolution)
+          formData.append("outputFormat", outputFormat)
 
-          if (currentMode === "image-editing") {
+          // Add image inputs if present
+          if (hasImages) {
             if (effectiveUseUrls) {
-              formData.append("image1Url", effectiveImage1Url)
+              if (effectiveImage1Url) {
+                formData.append("image1Url", effectiveImage1Url)
+              }
               if (effectiveImage2Url) {
                 formData.append("image2Url", effectiveImage2Url)
               }
@@ -200,7 +192,7 @@ export function useImageGeneration({
           if (!response.ok) {
             const errorData = await response.json().catch(() => ({ error: "Unknown error" }))
 
-            if (errorData.error === "Configuration error" && errorData.details?.includes("GOOGLE_API_KEY")) {
+            if (errorData.error === "Configuration error" && errorData.details?.includes("KIEAI_API_KEY")) {
               clearInterval(progressInterval)
               setGenerations((prev) => prev.filter((gen) => gen.id !== generationId))
               onApiKeyMissing?.()
@@ -216,15 +208,19 @@ export function useImageGeneration({
 
           if (data.url) {
             const completedGeneration: Generation = {
-              id: generationId,
+              id: data.id || generationId, // Use ID from API response
               status: "complete",
               progress: 100,
               imageUrl: data.url,
-              prompt: effectivePrompt,
+              imageUrls: data.urls,
+              prompt: data.prompt || effectivePrompt,
+              mode: data.mode, // Required field from API
               timestamp: Date.now(),
               createdAt: new Date().toISOString(),
-              aspectRatio: effectiveAspectRatio,
-              mode: currentMode,
+              aspectRatio: data.aspectRatio || effectiveAspectRatio,
+              resolution: data.resolution,
+              outputFormat: data.outputFormat,
+              model: "nano-banana-pro",
             }
 
             setGenerations((prev) => prev.filter((gen) => gen.id !== generationId))

@@ -35,7 +35,13 @@
       "Bash(node -e:*)",
       "Bash(rm:*)",
       "Bash(pnpm tsc:*)",
-      "WebFetch(domain:docs.kie.ai)"
+      "WebFetch(domain:docs.kie.ai)",
+      "Bash(ls:*)",
+      "WebFetch(domain:kie.ai)",
+      "WebFetch(domain:api.kie.ai)",
+      "Bash(curl:*)",
+      "Bash(node test-db-connection.js:*)",
+      "Bash(python -m json.tool:*)"
     ]
   }
 }

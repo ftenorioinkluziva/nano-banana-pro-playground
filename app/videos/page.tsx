@@ -10,6 +10,8 @@ import {
   ProgressSpinner,
   CenteredError,
 } from "@/components/shared"
+import { useVideoDatabaseHistory } from "@/components/video-generator/hooks/use-video-database-history"
+import { VideoHistory } from "@/components/video-generator/video-history"
 
 const DEFAULT_APP_STATE: AppState = AppStateEnum.IDLE
 
@@ -23,6 +25,14 @@ export default function VideosPage() {
   const [products, setProducts] = useState<any[]>([])
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null)
   const [loadingProducts, setLoadingProducts] = useState(false)
+
+  // Use video database history hook
+  const {
+    videos: videoHistory,
+    isLoading: loadingHistory,
+    refreshHistory: fetchVideoHistory,
+    deleteVideo,
+  } = useVideoDatabaseHistory()
 
   const handleGenerate = useCallback(async (params: GenerateVideoParams) => {
     setGenerating(true)
@@ -74,8 +84,8 @@ export default function VideosPage() {
           formData.append("styleImage", params.styleImage.file)
         }
       } else if (params.mode === "Extend Video") {
-        if (params.inputVideo) {
-          formData.append("inputVideo", params.inputVideo.file)
+        if (params.originalTaskId) {
+          formData.append("originalTaskId", params.originalTaskId)
         }
       }
 
@@ -98,9 +108,12 @@ export default function VideosPage() {
 
       setProgress(100)
 
+      // Generate unique ID for this generation
+      const generationId = `video-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+
       // Create video generation record from the complete response
       const generation: VideoGeneration = {
-        id: `video-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id: generationId,
         prompt: params.prompt,
         mode: params.mode,
         status: "complete",
@@ -115,6 +128,39 @@ export default function VideosPage() {
 
       setCurrentVideo(generation)
       setAppState(AppStateEnum.SUCCESS)
+
+      // Save to database in the background
+      try {
+        const saveResponse = await fetch("/api/save-video", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            id: generationId,
+            prompt: params.prompt,
+            negativePrompt: params.negativePrompt,
+            mode: params.mode,
+            videoUri: data.videoUri,
+            taskId: data.taskId, // Save the task ID for Extend Video
+            resolution: params.resolution,
+            aspectRatio: params.aspectRatio,
+            duration: params.duration,
+            model: data.model,
+          }),
+        })
+
+        if (!saveResponse.ok) {
+          console.error("Failed to save video to database")
+        } else {
+          console.log("Video saved to database successfully")
+          // Refresh video history after successful save
+          fetchVideoHistory()
+        }
+      } catch (saveError) {
+        console.error("Error saving video:", saveError)
+        // Don't fail the generation if save fails
+      }
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "An unknown error occurred"
@@ -123,7 +169,7 @@ export default function VideosPage() {
     } finally {
       setGenerating(false)
     }
-  }, [])
+  }, [fetchVideoHistory])
 
   const handleNewVideo = useCallback(() => {
     setAppState(AppStateEnum.IDLE)
@@ -183,9 +229,9 @@ export default function VideosPage() {
   return (
     <AppErrorBoundary>
       <main className="min-h-screen bg-black p-8">
-        <div className="w-full max-w-4xl mx-auto">
+        <div className="container mx-auto max-w-7xl">
           {/* Header */}
-          <div className="mb-12 text-center">
+          <div className="mb-8">
             <h1 className="text-4xl font-bold text-white mb-2">Video Generation</h1>
             <p className="text-zinc-400">
               Create stunning videos with AI-powered generation
@@ -193,46 +239,65 @@ export default function VideosPage() {
           </div>
 
           {/* Content */}
-          <div className="space-y-8">
-            {appState === AppStateEnum.IDLE && (
-              <VideoGenerationForm
-                onGenerate={handleGenerate}
-                generating={generating}
-                progress={progress}
-                error={error}
-                products={products}
-                selectedProduct={selectedProduct}
-                loadingProducts={loadingProducts}
-                onProductSelect={handleProductSelect}
-                onClearProduct={handleClearProduct}
-              />
-            )}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left Column - Generation Form/Result */}
+            <div className="lg:col-span-1">
+              {appState === AppStateEnum.IDLE && (
+                <VideoGenerationForm
+                  onGenerate={handleGenerate}
+                  generating={generating}
+                  progress={progress}
+                  error={error}
+                  products={products}
+                  selectedProduct={selectedProduct}
+                  loadingProducts={loadingProducts}
+                  onProductSelect={handleProductSelect}
+                  onClearProduct={handleClearProduct}
+                  videoHistory={videoHistory}
+                  loadingHistory={loadingHistory}
+                />
+              )}
 
-            {appState === AppStateEnum.LOADING && (
-              <ProgressSpinner
-                progress={progress}
-                message="Generating your video... This may take several minutes."
-                size="lg"
-              />
-            )}
+              {appState === AppStateEnum.LOADING && (
+                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-8">
+                  <ProgressSpinner
+                    progress={progress}
+                    message="Generating your video... This may take several minutes."
+                    size="lg"
+                  />
+                </div>
+              )}
 
-            {appState === AppStateEnum.SUCCESS && currentVideo && (
-              <VideoResult
-                video={currentVideo}
-                onNewVideo={handleNewVideo}
-                onRetry={handleRetry}
-                onDownload={handleDownload}
-              />
-            )}
+              {appState === AppStateEnum.SUCCESS && currentVideo && (
+                <VideoResult
+                  video={currentVideo}
+                  onNewVideo={handleNewVideo}
+                  onRetry={handleRetry}
+                  onDownload={handleDownload}
+                />
+              )}
 
-            {appState === AppStateEnum.ERROR && error && (
-              <CenteredError
-                title="Failed to generate video"
-                message={error || "An unexpected error occurred"}
-                onRetry={handleRetry}
-                onGoBack={handleNewVideo}
+              {appState === AppStateEnum.ERROR && error && (
+                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-8">
+                  <CenteredError
+                    title="Failed to generate video"
+                    message={error || "An unexpected error occurred"}
+                    onRetry={handleRetry}
+                    onGoBack={handleNewVideo}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Right Column - Video History */}
+            <div className="lg:col-span-2">
+              <VideoHistory
+                videos={videoHistory}
+                isLoading={loadingHistory}
+                onDelete={deleteVideo}
+                onRefresh={fetchVideoHistory}
               />
-            )}
+            </div>
           </div>
         </div>
       </main>

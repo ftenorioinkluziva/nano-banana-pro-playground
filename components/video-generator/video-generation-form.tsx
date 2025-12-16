@@ -27,6 +27,8 @@ interface VideoGenerationFormProps {
   loadingProducts?: boolean
   onProductSelect?: (productId: string) => void
   onClearProduct?: () => void
+  videoHistory?: any[]
+  loadingHistory?: boolean
 }
 
 const fileToBase64 = async (file: File): Promise<string> => {
@@ -65,6 +67,8 @@ export function VideoGenerationForm({
   loadingProducts = false,
   onProductSelect,
   onClearProduct,
+  videoHistory = [],
+  loadingHistory = false,
 }: VideoGenerationFormProps) {
   const [mode, setMode] = useState<GenerationMode>(GenerationModeEnum.TEXT_TO_VIDEO)
   const [prompt, setPrompt] = useState("")
@@ -79,6 +83,7 @@ export function VideoGenerationForm({
   const [referenceImages, setReferenceImages] = useState<ImageFile[]>([])
   const [styleImage, setStyleImage] = useState<ImageFile | null>(null)
   const [inputVideo, setInputVideo] = useState<VideoFile | null>(null)
+  const [originalTaskId, setOriginalTaskId] = useState("")
   const [isLooping, setIsLooping] = useState(false)
 
   const startFrameInputRef = useRef<HTMLInputElement>(null)
@@ -173,7 +178,9 @@ export function VideoGenerationForm({
       params.referenceImages = referenceImages
       params.styleImage = styleImage
     } else if (mode === GenerationModeEnum.EXTEND_VIDEO) {
-      params.inputVideo = inputVideo
+      // For Extend Video, we need to pass the originalTaskId
+      // The API route will use this instead of uploading a video
+      params.originalTaskId = originalTaskId
     }
 
     await onGenerate(params)
@@ -184,7 +191,7 @@ export function VideoGenerationForm({
     prompt.trim() &&
     ((mode === GenerationModeEnum.FRAMES_TO_VIDEO && startFrame) ||
       (mode === GenerationModeEnum.REFERENCES_TO_VIDEO && referenceImages.length > 0) ||
-      (mode === GenerationModeEnum.EXTEND_VIDEO && inputVideo) ||
+      (mode === GenerationModeEnum.EXTEND_VIDEO && originalTaskId.trim()) ||
       mode === GenerationModeEnum.TEXT_TO_VIDEO)
 
   return (
@@ -579,37 +586,62 @@ export function VideoGenerationForm({
 
       {/* Extend Video Mode */}
       {mode === GenerationModeEnum.EXTEND_VIDEO && (
-        <div className="space-y-4 border border-gray-800 p-4 rounded-lg">
-          <div>
-            <Label className="block mb-2">Input Video</Label>
-            {inputVideo ? (
-              <div className="relative inline-block">
-                <div className="w-32 h-24 bg-zinc-900 rounded-lg flex items-center justify-center">
-                  <Play size={32} className="text-zinc-600" />
-                </div>
-                <button
-                  onClick={() => setInputVideo(null)}
-                  className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white p-1 rounded"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => inputVideoInputRef.current?.click()}
-                className="border-2 border-dashed border-gray-800 rounded-lg p-6 w-full text-center hover:border-gray-600 transition-colors"
+        <div className="space-y-4 border border-gray-800 p-4 rounded-lg bg-black/30">
+          {/* Video History Selector */}
+          {videoHistory.length > 0 && (
+            <div>
+              <Label className="block mb-2">Select a Previous Video</Label>
+              <p className="text-xs text-zinc-500 mb-3">
+                Choose from your previously generated videos to extend
+              </p>
+              <Select
+                value={originalTaskId}
+                onValueChange={(value) => setOriginalTaskId(value)}
+                disabled={loadingHistory || generating}
               >
-                <Upload className="mx-auto mb-2" />
-                <p className="text-sm text-zinc-400">Upload Video (MP4)</p>
-              </button>
-            )}
+                <SelectTrigger className="w-full bg-zinc-900 border-gray-700">
+                  <SelectValue placeholder={loadingHistory ? "Loading videos..." : "Select a video to extend..."} />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-gray-700">
+                  {videoHistory
+                    .filter((video) => video.task_id && video.mode !== "Extend Video")
+                    .map((video) => (
+                      <SelectItem key={video.id} value={video.task_id} className="text-white">
+                        <div className="flex flex-col">
+                          <span className="font-medium truncate max-w-[300px]">
+                            {video.prompt.substring(0, 60)}
+                            {video.prompt.length > 60 ? "..." : ""}
+                          </span>
+                          <span className="text-xs text-gray-400">
+                            {new Date(video.created_at).toLocaleDateString()} • {video.mode} • {video.resolution}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Manual Task ID Input */}
+          <div>
+            <Label className="block mb-2">Or Enter Task ID Manually</Label>
+            <p className="text-xs text-zinc-500 mb-3">
+              Enter the task ID from a previously generated video using Veo 3.1 API
+            </p>
             <input
-              ref={inputVideoInputRef}
-              type="file"
-              accept="video/mp4"
-              onChange={handleInputVideoChange}
-              className="hidden"
+              type="text"
+              value={originalTaskId}
+              onChange={(e) => setOriginalTaskId(e.target.value)}
+              placeholder="veo_task_abc123..."
+              className="w-full px-3 py-2 bg-zinc-900 border border-gray-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-white transition-colors"
             />
+            {originalTaskId && (
+              <p className="mt-2 text-xs text-green-400 flex items-center gap-1">
+                <Lightbulb size={14} />
+                Task ID set. The video will be extended based on this original generation.
+              </p>
+            )}
           </div>
         </div>
       )}

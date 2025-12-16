@@ -16,6 +16,7 @@ interface SaveVideoRequest {
   negativePrompt?: string
   mode: string
   videoUri: string
+  taskId?: string
   resolution: string
   aspectRatio: string
   duration?: string
@@ -37,6 +38,7 @@ export async function POST(request: NextRequest) {
       negativePrompt,
       mode,
       videoUri,
+      taskId,
       resolution,
       aspectRatio,
       duration,
@@ -66,6 +68,7 @@ export async function POST(request: NextRequest) {
         mode,
         status,
         video_uri,
+        task_id,
         resolution,
         aspect_ratio,
         duration,
@@ -77,13 +80,15 @@ export async function POST(request: NextRequest) {
         ${mode},
         'complete',
         ${videoUri},
+        ${taskId || null},
         ${resolution},
         ${aspectRatio},
         ${duration || '6s'},
-        ${model || 'veo-3.1-fast-generate-preview'}
+        ${model || 'veo3_fast'}
       )
       ON CONFLICT (id) DO UPDATE SET
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = CURRENT_TIMESTAMP,
+        task_id = ${taskId || null}
       RETURNING id, created_at
     `
 

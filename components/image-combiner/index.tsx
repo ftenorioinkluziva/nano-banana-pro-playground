@@ -19,24 +19,11 @@ import { FullscreenViewer } from "./fullscreen-viewer"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ApiKeyWarning } from "@/components/api-key-warning"
 
-const AVAILABLE_MODELS = [
-  {
-    value: "gemini-2.5-flash-image",
-    label: "Gemini 2.5 Flash",
-    description: "Stable - Best for production",
-  },
-  {
-    value: "gemini-3-pro-image-preview",
-    label: "Gemini 3 Pro (Preview)",
-    description: "Latest model - May have bugs",
-  },
-] as const
-
 export function ImageCombiner() {
   const isMobile = useMobile()
-  const [prompt, setPrompt] = useState("A beautiful landscape with mountains and a lake at sunset")
-  const [selectedModel, setSelectedModel] = useState("gemini-2.5-flash-image")
-  const [numberOfImages, setNumberOfImages] = useState(1)
+  const [prompt, setPrompt] = useState("")
+  const [resolution, setResolution] = useState<"1K" | "2K" | "4K">("2K")
+  const [outputFormat, setOutputFormat] = useState<"PNG" | "JPG">("PNG")
   const [useUrls, setUseUrls] = useState(false)
   const [showFullscreen, setShowFullscreen] = useState(false)
   const [fullscreenImageUrl, setFullscreenImageUrl] = useState("")
@@ -47,9 +34,6 @@ export function ImageCombiner() {
   const [showHowItWorks, setShowHowItWorks] = useState(false)
   const [logoLoaded, setLogoLoaded] = useState(false)
   const [apiKeyMissing, setApiKeyMissing] = useState(false)
-  const [products, setProducts] = useState<any[]>([])
-  const [selectedProduct, setSelectedProduct] = useState<any | null>(null)
-  const [loadingProducts, setLoadingProducts] = useState(false)
 
   const [leftWidth, setLeftWidth] = useState(50) // percentage
   const [isResizing, setIsResizing] = useState(false)
@@ -107,8 +91,8 @@ export function ImageCombiner() {
   } = useImageGeneration({
     prompt,
     aspectRatio,
-    selectedModel,
-    numberOfImages,
+    resolution,
+    outputFormat,
     image1,
     image2,
     image1Url,
@@ -119,7 +103,6 @@ export function ImageCombiner() {
     addGeneration,
     onToast: showToast,
     onImageUpload: handleImageUpload,
-    onOutOfCredits: () => {},
     onApiKeyMissing: () => setApiKeyMissing(true),
   })
 
@@ -169,52 +152,6 @@ export function ImageCombiner() {
 
     checkApiKey()
   }, [])
-
-  // Fetch products
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setLoadingProducts(true)
-        const response = await fetch("/api/products")
-        const data = await response.json()
-        setProducts(data.products || [])
-      } catch (error) {
-        console.error("Error fetching products:", error)
-        showToast("Failed to load products", "error")
-      } finally {
-        setLoadingProducts(false)
-      }
-    }
-
-    fetchProducts()
-  }, [])
-
-  // Handle product selection
-  const handleProductSelect = useCallback((productId: string) => {
-    const product = products.find((p) => p.id.toString() === productId)
-    setSelectedProduct(product || null)
-
-    if (product) {
-      // Enrich prompt with product information
-      const productContext = `Product: ${product.name}${product.description ? `\nDescription: ${product.description}` : ""}${product.target_audience ? `\nTarget Audience: ${product.target_audience}` : ""}${product.category ? `\nCategory: ${product.category}` : ""}`
-
-      // If prompt is empty or is the default, replace it with product context
-      if (!prompt || prompt === "A beautiful landscape with mountains and a lake at sunset") {
-        setPrompt(productContext)
-      } else {
-        // Otherwise, append product context
-        setPrompt(`${prompt}\n\n${productContext}`)
-      }
-
-      showToast(`Product "${product.name}" selected`, "success")
-    }
-  }, [products, prompt])
-
-  const handleClearProduct = useCallback(() => {
-    setSelectedProduct(null)
-    showToast("Product cleared", "success")
-  }, [])
-  // </CHANGE>
 
   const openFullscreen = useCallback(() => {
     if (generatedImage?.url) {
@@ -743,17 +680,6 @@ export function ImageCombiner() {
                   <h1 className="text-lg md:text-2xl font-bold text-white select-none leading-none">
                     <div>Creato</div>
                   </h1>
-                  <p className="text-[9px] md:text-[10px] text-gray-400 select-none tracking-wide mt-0.5 md:mt-1">
-                    Powered by{" "}
-                    <a
-                      href="https://ai.google.dev/gemini-api"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:text-gray-300 transition-colors"
-                    >
-                      Google Gemini 2.0
-                    </a>
-                  </p>
                 </div>
               </div>
 
@@ -773,11 +699,10 @@ export function ImageCombiner() {
                     <InputSection
                       prompt={prompt}
                       setPrompt={setPrompt}
-                      selectedModel={selectedModel}
-                      setSelectedModel={setSelectedModel}
-                      availableModels={AVAILABLE_MODELS}
-                      numberOfImages={numberOfImages}
-                      setNumberOfImages={setNumberOfImages}
+                      resolution={resolution}
+                      setResolution={setResolution}
+                      outputFormat={outputFormat}
+                      setOutputFormat={setOutputFormat}
                       aspectRatio={aspectRatio}
                       setAspectRatio={setAspectRatio}
                       availableAspectRatios={availableAspectRatios}
@@ -799,33 +724,15 @@ export function ImageCombiner() {
                       onPromptPaste={handlePromptPaste}
                       onImageFullscreen={openImageFullscreen}
                       promptTextareaRef={promptTextareaRef}
-                      generations={persistedGenerations}
-                      selectedGenerationId={selectedGenerationId}
-                      onSelectGeneration={setSelectedGenerationId}
-                      onCancelGeneration={cancelGeneration}
-                      onDeleteGeneration={deleteGeneration}
-                      historyLoading={historyLoading}
-                      hasMore={hasMore}
-                      onLoadMore={loadMore}
-                      isLoadingMore={isLoadingMore}
                       isEnhancing={isEnhancing}
                       enhancedPrompt={enhancedPrompt}
                       imageAnalysis={imageAnalysis}
                       image1={image1}
-                      image1Url={image1Url}
                       image2={image2}
-                      image2Url={image2Url}
-                      useUrls={useUrls}
                       onEnhancePrompt={enhancePrompt}
                       onApplyEnhancedPrompt={applyEnhancedPrompt}
                       onClearEnhancedPrompt={clearEnhancedPrompt}
-                      products={products}
-                      selectedProduct={selectedProduct}
-                      loadingProducts={loadingProducts}
-                      onProductSelect={handleProductSelect}
-                      onClearProduct={handleClearProduct}
                     />
-                    {/* </CHANGE> */}
 
                     {/* Desktop History */}
                     <div className="hidden xl:block mt-3 flex-shrink-0">
@@ -877,7 +784,6 @@ export function ImageCombiner() {
                     />
                   </div>
                 </div>
-
                 {/* Mobile History - After both sections */}
                 <div className="xl:hidden flex-shrink-0">
                   <GenerationHistory
@@ -892,30 +798,6 @@ export function ImageCombiner() {
                     isLoadingMore={isLoadingMore}
                   />
                 </div>
-              </div>
-
-              <div className="mt-4 border-t border-white/10 pt-5 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 text-xs text-white/60 flex-shrink-0">
-                <a
-                  href="https://v0.dev/chat/template-link-here"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-white/80 transition-colors flex items-center gap-1"
-                >
-                  Make this app your own
-                </a>
-                <span className="text-white/20 hidden sm:inline">•</span>
-                <button onClick={() => setShowHowItWorks(true)} className="hover:text-white/80 transition-colors">
-                  How it works
-                </button>
-                <span className="text-white/20 hidden sm:inline">•</span>
-                <a
-                  href="https://x.com/estebansuarez"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-white/80 transition-colors flex items-center gap-1"
-                >
-                  Feedback?
-                </a>
               </div>
             </div>
           </div>

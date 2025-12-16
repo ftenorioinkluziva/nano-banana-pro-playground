@@ -6,19 +6,19 @@ export function ApiKeyWarning() {
       <div className="flex gap-3">
         <AlertCircle className="w-5 h-5 text-zinc-400 flex-shrink-0 mt-0.5" />
         <div>
-          <h3 className="text-zinc-200 font-semibold text-sm mb-1">Google API Key Required</h3>
+          <h3 className="text-zinc-200 font-semibold text-sm mb-1">Kie API Key Required</h3>
           <p className="text-zinc-400 text-xs leading-relaxed">
-            Creato requires a Google API key to generate images. Please add your{" "}
-            <code className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-300">GOOGLE_API_KEY</code> as an
+            Creato requires a Kie API key to generate images. Please add your{" "}
+            <code className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-300">KIEAI_API_KEY</code> as an
             environment variable and redeploy.
           </p>
           <a
-            href="https://ai.google.dev/gemini-api/docs/api-key"
+            href="https://kie.ai/"
             target="_blank"
             rel="noopener noreferrer"
             className="text-zinc-300 hover:text-zinc-100 text-xs underline mt-2 inline-block"
           >
-            Learn how to get a Google API key →
+            Learn how to get a Kie API key →
           </a>
         </div>
       </div>

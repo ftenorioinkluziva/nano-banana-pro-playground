@@ -5,12 +5,12 @@ import { DEFAULT_ASPECT_RATIOS, ALL_ASPECT_RATIOS } from "../constants"
 import type { AspectRatioOption } from "../types"
 
 export function useAspectRatio() {
-  const [aspectRatio, setAspectRatio] = useState("square")
-  const [availableAspectRatios, setAvailableAspectRatios] = useState<AspectRatioOption[]>(DEFAULT_ASPECT_RATIOS)
+  const [aspectRatio, setAspectRatio] = useState("1:1")
+  const [availableAspectRatios, setAvailableAspectRatios] = useState<AspectRatioOption[]>(ALL_ASPECT_RATIOS)
 
   const detectAspectRatio = (width: number, height: number): string => {
     const ratio = width / height
-    const defaultOptions = ["square", "portrait", "landscape", "wide"]
+    const defaultOptions = ["1:1", "9:16", "16:9"]
 
     let closestMatch = ALL_ASPECT_RATIOS[0]
     let smallestDiff = Math.abs(ratio - closestMatch.ratio)

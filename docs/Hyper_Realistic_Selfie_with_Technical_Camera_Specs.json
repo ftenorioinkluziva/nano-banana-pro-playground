@@ -1,0 +1,42 @@
+{
+"image_prompt": {
+    "subject": {
+   "demographics": "Young woman",
+   "skin_tone": "White skin with prominent freckles on nose and cheeks, rendered with Deep Fusion texture accuracy",
+   "hair": "Long, wavy brown hair",
+   "eyes": "Green/Hazel (one eye open), sharp focus showing iris detail",
+   "eyebrows": "Thick, natural, dark eyebrows"
+  },
+  "attire": {
+   "clothing": "Black bikini top with white polka dots",
+   "jewelry": "Delicate layered gold chain necklace"
+  },
+  "expression_and_pose": {
+   "facial_expression": "Playful and cheeky; winking with right eye (viewer's left), tongue slightly sticking out to the side, smiling with teeth visible",
+   "hand_position": "Right hand resting on top of the head/headscarf",
+   "framing": "Close-up selfie portrait, arm visible holding the device",
+   "angle": "Eye-level selfie angle"
+  },
+  "environment": {
+   "setting": "Outdoor tropical or coastal location",
+   "background": "Textured tree bark or rock face with hints of green tropical foliage, exhibiting natural bokeh",
+   "lighting": "Bright natural daylight, dappled sunlight, handled by Smart HDR 5 for balanced highlights and shadows"
+  },
+  "technical_specifications": {
+   "device": "iPhone 17 Pro Max",
+   "camera": "TrueDepth Front Camera (or 48MP Fusion System style)",
+   "lens_details": "24mm equivalent, f/1.9 aperture",
+   "resolution": "48MP ProRAW / HEIF Max",
+   "processing": "Photonic Engine, Deep Fusion, Smart HDR 6",
+   "color_profile": "Standard Photographic Style with high dynamic range",
+   "quality_tags": [
+    "Ultra-fine facial detail",
+    "Natural skin texture",
+    "Sharp focus",
+    "8K resolution",
+    "Mobile photography masterpiece",
+    "Shot on iPhone"
+   ]
+  }
+ }
+}

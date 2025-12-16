@@ -15,6 +15,13 @@ export interface Generation {
   timestamp: number
   abortController?: AbortController
   thumbnailLoaded?: boolean
+  // Additional fields from database
+  mode?: string
+  aspectRatio?: string
+  model?: string
+  enhancedPrompt?: string | null
+  description?: string | null
+  imageUrls?: string[]
 }
 
 export type AspectRatioOption = {

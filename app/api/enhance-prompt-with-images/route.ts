@@ -8,7 +8,6 @@ const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif
 
 interface EnhancePromptResponse {
   enhanced: string
-  imageAnalysis?: string[]
 }
 
 interface ErrorResponse {
@@ -16,49 +15,19 @@ interface ErrorResponse {
   details?: string
 }
 
-async function analyzeImage(imageSource: File | string): Promise<string> {
-  try {
-    const convertToDataUrl = async (source: File | string): Promise<string> => {
-      if (typeof source === "string") {
-        const response = await fetch(source)
-        const arrayBuffer = await response.arrayBuffer()
-        const buffer = Buffer.from(arrayBuffer)
-        const base64 = buffer.toString("base64")
-        const contentType = response.headers.get("content-type") || "image/jpeg"
-        return `data:${contentType};base64,${base64}`
-      } else {
-        const arrayBuffer = await source.arrayBuffer()
-        const buffer = Buffer.from(arrayBuffer)
-        const base64 = buffer.toString("base64")
-        return `data:${source.type};base64,${base64}`
-      }
-    }
-
-    const imageDataUrl = await convertToDataUrl(imageSource)
-
-    const { text } = await generateText({
-      model: google("gemini-2.5-flash"),
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "image",
-              image: imageDataUrl,
-            },
-            {
-              type: "text",
-              text: "Analyze this image and provide a concise description of its main elements, composition, setting, and visual characteristics. Keep it brief (1-2 sentences). Focus on: what is in the image, the setting/environment, lighting, colors, and any notable visual elements.",
-            },
-          ],
-        },
-      ],
-    })
-
-    return text.trim()
-  } catch (error) {
-    console.error("Error analyzing image:", error)
-    return "Unable to analyze image"
+async function convertToDataUrl(source: File | string): Promise<string> {
+  if (typeof source === "string") {
+    const response = await fetch(source)
+    const arrayBuffer = await response.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+    const base64 = buffer.toString("base64")
+    const contentType = response.headers.get("content-type") || "image/jpeg"
+    return `data:${contentType};base64,${base64}`
+  } else {
+    const arrayBuffer = await source.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+    const base64 = buffer.toString("base64")
+    return `data:${source.type};base64,${base64}`
   }
 }
 
@@ -85,9 +54,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Analyze images if present
-    const imageAnalyses: string[] = []
-    const hasImages = (image1 || image1Url) || (image2 || image2Url)
+    // Collect images to pass directly to the model
+    const images: string[] = []
 
     if (image1) {
       if (image1.size > MAX_FILE_SIZE) {
@@ -103,13 +71,13 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      const analysis = await analyzeImage(image1)
-      imageAnalyses.push(analysis)
+      const imageDataUrl = await convertToDataUrl(image1)
+      images.push(imageDataUrl)
     }
 
     if (image1Url) {
-      const analysis = await analyzeImage(image1Url)
-      imageAnalyses.push(analysis)
+      const imageDataUrl = await convertToDataUrl(image1Url)
+      images.push(imageDataUrl)
     }
 
     if (image2) {
@@ -126,79 +94,108 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      const analysis = await analyzeImage(image2)
-      imageAnalyses.push(analysis)
+      const imageDataUrl = await convertToDataUrl(image2)
+      images.push(imageDataUrl)
     }
 
     if (image2Url) {
-      const analysis = await analyzeImage(image2Url)
-      imageAnalyses.push(analysis)
+      const imageDataUrl = await convertToDataUrl(image2Url)
+      images.push(imageDataUrl)
     }
 
-    // Build context from image analyses
-    let imageContext = ""
-    if (imageAnalyses.length > 0) {
-      imageContext = `\n\nCONTEXT FROM INPUT IMAGES:\n${imageAnalyses.map((analysis, i) => `Image ${i + 1}: ${analysis}`).join("\n")}\n\nThe user wants to edit/combine these images with the following direction:`
-    }
+    const hasImages = images.length > 0
 
-    const systemPrompt = `You are an expert AI image generation prompt engineer specialized in image editing and combination. Your task is to enhance and optimize prompts for Google's Gemini image generation model based on official best practices.
+    const systemPrompt = `You are an expert AI image generation prompt engineer specialized in creating hyper-realistic UGC (User-Generated Content) photography prompts. Your task is to transform user requests into detailed prompts that generate authentic, selfie-style product photos that look like real people sharing their genuine experiences with products.
 
-CORE PRINCIPLE:
-"Describe the scene, not just list words." Focus on creating vivid, complete narratives that paint a cohesive visual picture.${imageContext}
+CORE PHILOSOPHY:
+Create prompts for images that feel spontaneous, authentic, and relatable - like a real person sharing their product experience on social media. The focus is on natural beauty, genuine moments, and believable scenarios.${hasImages ? "\n\nIMPORTANT: The user has provided reference images. Look at these images carefully and use them as visual context to understand the product, style, setting, and desired aesthetic. Enhance the prompt while staying true to the visual elements shown in the reference images." : ""}
 
-ENHANCEMENT GUIDELINES:
+UGC PHOTOGRAPHY PRINCIPLES:
 
-1. SCENE COMPOSITION (Primary Focus):
-   - Complete setting/environment description: location, time of day, weather, season
-   - Spatial relationships: how elements are positioned and interact
-   - Atmosphere and mood: emotional tone, lighting quality, ambient conditions
-   - Foreground, midground, and background layers
+1. AUTHENTIC SELFIE AESTHETICS:
+   - Natural smartphone camera angles (slight overhead, arm's length, mirror selfies)
+   - Candid, relaxed expressions and genuine smiles
+   - Soft, flattering natural lighting (window light, golden hour, bathroom lighting)
+   - Real-world settings: bedrooms, bathrooms, living rooms, outdoor casual locations
+   - Handheld camera feel with natural imperfections (not studio-perfect)
 
-2. PHOTOGRAPHIC/VISUAL TECHNIQUES (when appropriate):
-   - Camera perspective: close-up, wide-angle, overhead, low angle, macro shot
-   - Composition style: rule of thirds, centered, symmetrical, diagonal lines
-   - Lighting type: natural sunlight, golden hour, soft diffuse, dramatic shadows, neon
-   - Depth of field: sharp focus subject with blurred background, or all in focus
-   - Color palette: warm/cool tones, vibrant/muted, monochromatic, specific color scheme
+2. RELATABLE HUMAN SUBJECTS:
+   - Real people vibes: diverse, authentic, approachable
+   - Natural makeup and styling (not overly glamorous)
+   - Casual, comfortable clothing appropriate for the context
+   - Genuine emotional connections with the product (joy, satisfaction, confidence)
+   - Body language that shows product use in daily life
 
-3. STYLIZATION (when requested):
-   - Art style: photorealistic, illustration, watercolor, oil painting, digital art, 3D render
-   - Artistic movement: impressionist, surrealist, minimalist, baroque, art deco
-   - Reference inspirations: "in the style of [artist]" or "inspired by [work]"
+3. PRODUCT INTEGRATION:
+   - Product naturally incorporated into the scene (held, used, or displayed)
+   - Product clearly visible but not overly staged
+   - Realistic product placement in everyday contexts
+   - Focus on how real people would actually use/display the product
 
-4. SPECIFIC SUBJECT DETAILS:
-   - Character/object descriptions: physical appearance, expression, gesture, clothing
-   - Materials and textures: fabric, metal, wood, glass, skin, foliage
-   - Scale and proportion: size relationships between elements
-   - Actions or interactions: what is happening in the scene
+4. SCENE DETAILS:
+   - Believable backgrounds: lived-in spaces, natural environments
+   - Appropriate props that enhance authenticity (coffee cups, phones, everyday items)
+   - Natural clutter or organized chaos (not sterile studio setups)
+   - Contextual elements that tell a micro-story
 
-5. TECHNICAL CONSTRAINTS:
-   - Keep prompt between 75-500 characters (concise but descriptive)
-   - Maintain the user's original intent and core idea
-   - Use descriptive language over generic superlatives
-   - Avoid conflicting style directives${hasImages ? "\n   - IMPORTANT: Base the enhanced prompt on the images provided, expanding on user's requested modifications while preserving the base visual elements" : ""}
+5. LIGHTING & TECHNICAL:
+   - Soft, diffused natural light (avoid harsh studio lighting)
+   - Warm, inviting color tones
+   - Slight imperfections that add authenticity (natural skin texture, soft focus areas)
+   - Mobile photography aesthetic (not professional DSLR look)
+
+6. PROMPT STRUCTURE:
+   - Keep output between 75-500 characters
+   - Start with the main subject and action
+   - Include specific lighting and setting details
+   - Add authentic emotional and atmospheric elements
+   - Preserve user's original intent while enhancing realism
 
 INSTRUCTIONS:
-- Transform the prompt into a vivid scene description that tells a visual story
-- Preserve and expand on the user's original intent
-- Ensure all elements work together cohesively
-- Return ONLY the enhanced prompt, no explanations, prefixes, bracketed notes, or commentary
+- Analyze the user's original prompt and ${hasImages ? "the provided reference images" : "their intent"}
+- Transform it into a vivid, detailed prompt for hyper-realistic UGC photography
+- Ensure the output feels authentic and achievable with a smartphone camera
+- Include specific details about lighting, setting, subject, and mood
+- Return ONLY the enhanced prompt - no explanations, labels, or commentary
 
-Original prompt to enhance:
+User's original request:
 ${prompt}
 
-Enhanced prompt:`
+Enhanced UGC prompt:`
+
+    // Build messages with images if available
+    const content: any[] = []
+
+    // Add images first if available
+    if (hasImages) {
+      for (const imageDataUrl of images) {
+        content.push({
+          type: "image",
+          image: imageDataUrl,
+        })
+      }
+    }
+
+    // Add the system prompt as text
+    content.push({
+      type: "text",
+      text: systemPrompt,
+    })
 
     const { text } = await generateText({
       model: google("gemini-2.5-flash"),
-      prompt: systemPrompt,
+      messages: [
+        {
+          role: "user",
+          content: content,
+        },
+      ],
       temperature: 0.7,
       maxTokens: 500,
     })
 
     return NextResponse.json<EnhancePromptResponse>({
       enhanced: text.trim(),
-      imageAnalysis: imageAnalyses.length > 0 ? imageAnalyses : undefined,
     })
   } catch (error: any) {
     console.error("Error enhancing prompt with images:", error)

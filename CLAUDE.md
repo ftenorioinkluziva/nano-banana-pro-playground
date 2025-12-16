@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is **Creato**, an AI-powered creative generation platform for content creators built with Next.js 16. The application uses Google's Gemini 2.0 Flash model directly via @ai-sdk/google to help content creators generate high-quality creatives, social media posts, and marketing materials from text prompts and edit/combine existing images.
+This is **Creato**, an AI-powered creative generation platform for content creators built with Next.js 16. The application uses Kie AI's nano-banana-pro model to help content creators generate high-quality creatives, social media posts, and marketing materials from text prompts and edit/combine existing images.
 
 ## Development Commands
 
@@ -35,11 +35,12 @@ pnpm lint
    - Generation history with persistent storage (IndexedDB)
    - Global drag-and-drop, paste, and keyboard shortcuts
 
-2. **API Route**: `/api/generate-image/route.ts` handles both modes:
-   - `text-to-image`: Generates images from text prompts only
-   - `image-editing`: Edits or combines 1-2 input images based on prompt
-   - Uses Google Gemini 2.0 Flash model directly via @ai-sdk/google
-   - Returns base64-encoded images
+2. **API Route**: `/api/generate-image/route.ts` handles image generation:
+   - Accepts text prompts with optional image inputs (up to 8 images)
+   - Uses Kie AI's nano-banana-pro model via REST API
+   - Supports customizable resolution (1K, 2K, 4K), aspect ratio, and output format (PNG, JPG)
+   - Creates async task and polls for completion
+   - Returns image URLs from Kie's CDN
 
 3. **Custom Hooks** (components/image-combiner/hooks/):
    - `use-image-generation.ts`: Generation state, progress tracking, API calls
@@ -75,36 +76,40 @@ Built with shadcn/ui (components/ui/) using Radix UI primitives and Tailwind CSS
 Required in `.env.local` or deployment environment:
 
 ```
-GOOGLE_API_KEY=your_google_api_key
+KIEAI_API_KEY=your_kie_api_key
 ```
 
-Get your Google API key from [Google AI Studio](https://ai.google.dev/gemini-api/docs/api-key).
+Get your Kie API key from [Kie AI](https://kie.ai/).
 
 The app checks for this key via `/api/check-api-key` route and displays a warning banner if missing.
 
 ## Important Implementation Details
 
 ### Image Handling
-- Max file size: 10MB per image
+- Max file size: 30MB per image
+- Supports up to 8 input images as references
 - Supported formats: JPEG, PNG, WebP, GIF
 - HEIC images are automatically converted client-side via `heic-to` library
 - Images can be provided as File uploads or external URLs
-- All generated images are returned as base64 data URLs
+- Generated images are returned as URLs from Kie's CDN
 
-### Aspect Ratios
-The app supports multiple aspect ratios that map to Gemini's supported formats:
-- portrait (9:16), landscape (16:9), wide (21:9)
-- square (1:1)
-- 4:3, 3:4, 3:2, 2:3, 5:4, 4:5
+### Generation Parameters
+The app provides full control over generation parameters:
+- **Aspect Ratio**: 1:1, 16:9, 9:16, 4:3, 3:4, 3:2, 2:3, 5:4, 4:5
+- **Resolution**: 1K, 2K, or 4K
+- **Output Format**: PNG or JPG
+- **Image Input**: Up to 8 reference images
 
 ### Generation Flow
-1. User enters prompt and optionally uploads images
-2. Frontend creates Generation object with loading state
-3. API route receives FormData with mode, prompt, aspectRatio, and images
-4. API directly calls Google Gemini 2.0 Flash via @ai-sdk/google
-5. API returns base64 image
-6. Frontend updates Generation to complete status and persists to IndexedDB
-7. Success sound plays on completion
+1. User enters prompt and selects generation parameters (resolution, aspect ratio, output format)
+2. User optionally uploads reference images (up to 8 images)
+3. Frontend creates Generation object with loading state
+4. API route receives FormData with prompt, parameters, and images
+5. API creates task via Kie AI's `/api/v1/jobs/createTask` endpoint
+6. API polls task status via `/api/v1/jobs/recordInfo` endpoint (max 2 minutes)
+7. When task completes, API returns image URLs
+8. Frontend updates Generation to complete status and persists to IndexedDB
+9. Success sound plays on completion
 
 ### Keyboard Shortcuts
 - `Cmd/Ctrl + Enter`: Generate image (when in prompt textarea)
@@ -138,8 +143,9 @@ TypeScript path aliases are configured via tsconfig.json:
 ## Testing the Application
 
 To test image generation:
-1. Get a Google API key from [Google AI Studio](https://ai.google.dev/gemini-api/docs/api-key)
-2. Add `GOOGLE_API_KEY` to `.env.local` file
+1. Get a Kie API key from [Kie AI](https://kie.ai/)
+2. Add `KIEAI_API_KEY` to `.env.local` file
 3. Run `pnpm dev`
-4. Enter a text prompt and click Generate (text-to-image mode)
-5. Upload 1-2 images and add prompt to edit/combine (image-editing mode)
+4. Enter a text prompt and click Generate
+5. Optionally upload 1-8 reference images
+6. Adjust resolution (1K/2K/4K), aspect ratio, and output format as needed

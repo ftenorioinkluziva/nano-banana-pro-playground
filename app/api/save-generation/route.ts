@@ -58,6 +58,11 @@ export async function POST(request: NextRequest) {
     const sql = neon(getDatabaseUrl())
 
     // Save generation metadata to database
+    // If imageUrls is already a string, parse it first, otherwise use as is
+    const imageUrlsArray = imageUrls
+      ? (typeof imageUrls === 'string' ? JSON.parse(imageUrls) : imageUrls)
+      : null
+
     const result = await sql`
       INSERT INTO generations (
         id,
@@ -77,9 +82,9 @@ export async function POST(request: NextRequest) {
         ${mode},
         'complete',
         ${imageUrl},
-        ${imageUrls ? JSON.stringify(imageUrls) : null},
+        ${imageUrlsArray},
         ${aspectRatio || '1:1'},
-        ${model || 'gemini-2.5-flash-image'},
+        ${model || 'nano-banana-pro'},
         ${description || null}
       )
       ON CONFLICT (id) DO UPDATE SET

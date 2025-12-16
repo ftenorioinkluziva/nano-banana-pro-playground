@@ -1,7 +1,7 @@
 // Video Generation Types
 export enum VeoModel {
-  VEO_FAST = "veo-3.1-fast-generate-preview",
-  VEO = "veo-3.1-generate-preview",
+  VEO_FAST = "veo3_fast",
+  VEO = "veo3",
 }
 
 export enum AspectRatio {
@@ -50,6 +50,7 @@ export interface GenerateVideoParams {
   referenceImages?: ImageFile[]
   styleImage?: ImageFile | null
   inputVideo?: VideoFile | null
+  originalTaskId?: string
   isLooping?: boolean
 }
 
@@ -57,11 +58,13 @@ export interface VideoGeneration {
   id: string
   user_id?: string
   prompt: string
+  negative_prompt?: string
   mode: GenerationMode
   status: "loading" | "complete" | "error"
   video_url?: string
   video_uri?: string
-  duration?: number
+  task_id?: string
+  duration?: string
   resolution: Resolution
   aspect_ratio: AspectRatio
   model: VeoModel
