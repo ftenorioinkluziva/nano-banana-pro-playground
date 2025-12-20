@@ -13,7 +13,7 @@ export function NavigationBar() {
     { href: "/images", label: "Images" },
     { href: "/videos", label: "Videos" },
     { href: "/products", label: "Products" },
-    { href: "/ugc", label: "UGC Videos" },
+    { href: "/ugc/script", label: "Script UGC Videos" },
   ]
 
   return (

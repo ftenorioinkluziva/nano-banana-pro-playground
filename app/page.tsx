@@ -29,9 +29,9 @@ export default function Home() {
     },
     {
       icon: Zap,
-      title: "UGC Videos",
+      title: "Script UGC Videos",
       description: "Create User-Generated Content videos in seconds",
-      href: "/ugc",
+      href: "/ugc/script",
       label: "UGC Studio",
     },
   ]
