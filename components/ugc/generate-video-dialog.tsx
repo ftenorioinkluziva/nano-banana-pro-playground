@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import type { Capability } from "@/types/capability";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Sparkles, Wand2 } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 
 interface Product {
   id: number;
@@ -45,62 +46,46 @@ export default function GenerateVideoDialog({
   onOpenChange,
 }: GenerateVideoDialogProps) {
   const [loading, setLoading] = useState(false);
-  const [generatingScene, setGeneratingScene] = useState(false);
-  const [model, setModel] = useState("Nano + Veo 3.1");
+  const [model, setModel] = useState<"veo3" | "veo3_fast">("veo3_fast");
   const [videoSetting, setVideoSetting] = useState(
     `A realistic UGC style video of a person using ${product.name} in a casual home environment.`
   );
+  const [capabilities, setCapabilities] = useState<Capability[]>([]);
+  const [selectedCapabilityId, setSelectedCapabilityId] = useState<string>("");
 
-  const handleGenerateScene = async () => {
-    setGeneratingScene(true);
-
-    try {
-      const response = await fetch("/api/generate-scene-description", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          productName: product.name,
-          description: product.description,
-          targetAudience: product.target_audience,
-          category: product.category,
-          ingredients: product.ingredients,
-          benefits: product.benefits,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        setVideoSetting(data.sceneDescription);
-        toast.success("Scene description generated!", {
-          description: "Feel free to edit it before generating the video",
-        });
-      } else {
-        toast.error(data.error || "Failed to generate scene description");
-      }
-    } catch (error) {
-      console.error("Error generating scene:", error);
-      toast.error("Failed to generate scene description");
-    } finally {
-      setGeneratingScene(false);
-    }
-  };
+  // Buscar capabilities da API
+  useEffect(() => {
+    fetch("/api/capabilities")
+      .then((res) => res.json())
+      .then((data) => {
+        setCapabilities(data.capabilities || []);
+        if (data.capabilities && data.capabilities.length > 0) {
+          setSelectedCapabilityId(data.capabilities[0].id);
+        }
+      })
+      .catch((err) => console.error("Error loading capabilities:", err));
+  }, []);
 
   const handleGenerate = async () => {
+    if (!selectedCapabilityId) {
+      toast.error("Please select a video style");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const response = await fetch("/api/dispatch-ugc", {
+      const response = await fetch("/api/generate-ugc", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          userRequest: videoSetting,
           productId: product.id,
-          model,
-          videoSetting,
+          capabilityId: selectedCapabilityId,
+          aspectRatio: "9:16",
+          model: model,
         }),
       });
 
@@ -108,7 +93,7 @@ export default function GenerateVideoDialog({
 
       if (data.success) {
         toast.success("Video generation started!", {
-          description: "Check the history to track progress",
+          description: "Director Agent is crafting your video prompt",
         });
         onOpenChange(false);
 
@@ -162,58 +147,55 @@ export default function GenerateVideoDialog({
             </div>
           </div>
 
+          {/* Capability Selection */}
+          <div className="space-y-2">
+            <Label htmlFor="capability">Video Style (Capability)</Label>
+            <Select value={selectedCapabilityId} onValueChange={setSelectedCapabilityId}>
+              <SelectTrigger id="capability">
+                <SelectValue placeholder="Select a video style" />
+              </SelectTrigger>
+              <SelectContent>
+                {capabilities.map((cap) => (
+                  <SelectItem key={cap.id} value={cap.id}>
+                    {cap.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {capabilities.find((c) => c.id === selectedCapabilityId)?.description}
+            </p>
+          </div>
+
           {/* AI Model Selection */}
           <div className="space-y-2">
             <Label htmlFor="model">AI Model</Label>
-            <Select value={model} onValueChange={setModel}>
+            <Select value={model} onValueChange={(value: "veo3" | "veo3_fast") => setModel(value)}>
               <SelectTrigger id="model">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Nano + Veo 3.1">Nano + Veo 3.1 (Recommended)</SelectItem>
-                <SelectItem value="Nano + Veo 3.0">Nano + Veo 3.0</SelectItem>
-                <SelectItem value="Standard">Standard</SelectItem>
+                <SelectItem value="veo3_fast">Veo 3.1 Fast (Recommended)</SelectItem>
+                <SelectItem value="veo3">Veo 3.1 Quality</SelectItem>
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              Select the AI model for video generation
+              veo3_fast: Faster generation | veo3: Higher quality (slower)
             </p>
           </div>
 
           {/* Video Setting */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="setting">Video Setting / Scene Description</Label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleGenerateScene}
-                disabled={generatingScene || loading}
-                className="h-7"
-              >
-                {generatingScene ? (
-                  <>
-                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Wand2 className="mr-1 h-3 w-3" />
-                    Generate with AI
-                  </>
-                )}
-              </Button>
-            </div>
+            <Label htmlFor="setting">What happens in the video?</Label>
             <Textarea
               id="setting"
               value={videoSetting}
               onChange={(e) => setVideoSetting(e.target.value)}
-              placeholder="Describe the scene, environment, and how the product should be presented..."
+              placeholder="Ex: A woman in her 30s holding the product and smiling at the camera"
               className="min-h-[120px]"
             />
             <p className="text-xs text-muted-foreground">
-              Describe the visual setting and context for the UGC video, or click "Generate with AI" to auto-create based on product details
+              Describe what you want to see in the video. The Director Agent will automatically enhance this with technical details based on the selected capability.
             </p>
           </div>
         </div>

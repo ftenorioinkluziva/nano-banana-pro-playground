@@ -22,6 +22,7 @@ import { ApiKeyWarning } from "@/components/api-key-warning"
 export function ImageCombiner() {
   const isMobile = useMobile()
   const [prompt, setPrompt] = useState("")
+  const [model, setModel] = useState<"nano-banana-pro" | "z-image">("nano-banana-pro")
   const [resolution, setResolution] = useState<"1K" | "2K" | "4K">("2K")
   const [outputFormat, setOutputFormat] = useState<"PNG" | "JPG">("PNG")
   const [useUrls, setUseUrls] = useState(false)
@@ -63,6 +64,20 @@ export function ImageCombiner() {
 
   const { aspectRatio, setAspectRatio, availableAspectRatios, detectAspectRatio } = useAspectRatio()
 
+  // Filter aspect ratios based on selected model
+  // z-image only supports: 1:1, 4:3, 3:4, 16:9, 9:16
+  const zImageSupportedRatios = ["1:1", "4:3", "3:4", "16:9", "9:16"]
+  const filteredAspectRatios = model === "z-image"
+    ? availableAspectRatios.filter(ratio => zImageSupportedRatios.includes(ratio.value))
+    : availableAspectRatios
+
+  // Reset aspect ratio if current selection is not supported by the new model
+  useEffect(() => {
+    if (model === "z-image" && !zImageSupportedRatios.includes(aspectRatio)) {
+      setAspectRatio("1:1")
+    }
+  }, [model, aspectRatio, setAspectRatio])
+
   const { isEnhancing, enhancedPrompt, imageAnalysis, enhancePrompt, applyEnhancedPrompt, clearEnhancedPrompt } = usePromptEnhancement({
     onToast: showToast,
   })
@@ -90,6 +105,7 @@ export function ImageCombiner() {
     loadGeneratedAsInput,
   } = useImageGeneration({
     prompt,
+    model,
     aspectRatio,
     resolution,
     outputFormat,
@@ -176,7 +192,14 @@ export function ImageCombiner() {
   const downloadImage = useCallback(async () => {
     if (!generatedImage) return
     try {
-      const response = await fetch(generatedImage.url)
+      // Use proxy API to avoid CORS issues
+      const proxyUrl = `/api/download-image?url=${encodeURIComponent(generatedImage.url)}`
+      const response = await fetch(proxyUrl)
+
+      if (!response.ok) {
+        throw new Error("Failed to download image")
+      }
+
       const blob = await response.blob()
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement("a")
@@ -188,6 +211,7 @@ export function ImageCombiner() {
       window.URL.revokeObjectURL(url)
     } catch (error) {
       console.error("Error downloading image:", error)
+      // Fallback: open in new tab if download fails
       window.open(generatedImage.url, "_blank")
     }
   }, [generatedImage, currentMode])
@@ -699,13 +723,15 @@ export function ImageCombiner() {
                     <InputSection
                       prompt={prompt}
                       setPrompt={setPrompt}
+                      model={model}
+                      setModel={setModel}
                       resolution={resolution}
                       setResolution={setResolution}
                       outputFormat={outputFormat}
                       setOutputFormat={setOutputFormat}
                       aspectRatio={aspectRatio}
                       setAspectRatio={setAspectRatio}
-                      availableAspectRatios={availableAspectRatios}
+                      availableAspectRatios={filteredAspectRatios}
                       useUrls={useUrls}
                       setUseUrls={setUseUrls}
                       image1Preview={image1Preview}

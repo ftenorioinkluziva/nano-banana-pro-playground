@@ -22,6 +22,8 @@ interface Generation {
   thumbnail_url: string | null;
   final_prompt: string | null;
   visual_setting: string | null;
+  capability_label?: string;
+  capability_description?: string;
   created_at: string;
   updated_at: string;
 }
@@ -279,9 +281,16 @@ export default function UGCGenerationHistory() {
                                 <h3 className="font-semibold">
                                   {generation.product_name}
                                 </h3>
-                                <p className="text-sm text-muted-foreground mt-1">
-                                  {generation.ai_model}
-                                </p>
+                                <div className="flex items-center gap-2 mt-1">
+                                  {generation.capability_label && (
+                                    <Badge variant="outline" className="text-xs">
+                                      {generation.capability_label}
+                                    </Badge>
+                                  )}
+                                  <p className="text-sm text-muted-foreground">
+                                    {generation.ai_model}
+                                  </p>
+                                </div>
                               </div>
                               {getStatusBadge(generation.status)}
                             </div>

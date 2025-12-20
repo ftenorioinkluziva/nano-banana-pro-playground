@@ -114,6 +114,7 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData()
     const prompt = formData.get("prompt") as string
+    const model = (formData.get("model") as string) || "nano-banana-pro"
     const aspectRatio = (formData.get("aspectRatio") as string) || "1:1"
     const resolution = (formData.get("resolution") as string) || "1K"
     const outputFormat = (formData.get("outputFormat") as string) || "PNG"
@@ -203,11 +204,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Prepare Kie API request - parameters must be inside "input" object
+    // Note: z-image model only supports prompt and aspect_ratio
     const inputParams: any = {
       prompt: prompt,
       aspect_ratio: kieAspectRatio,
-      resolution: resolution,
-      output_format: outputFormat.toLowerCase(), // Kie API requires lowercase
+    }
+
+    // Add resolution and output_format only for nano-banana-pro
+    if (model === "nano-banana-pro") {
+      inputParams.resolution = resolution
+      inputParams.output_format = outputFormat.toLowerCase() // Kie API requires lowercase
     }
 
     // Add image inputs if any
@@ -216,12 +222,12 @@ export async function POST(request: NextRequest) {
     }
 
     const kieRequestBody = {
-      model: "nano-banana-pro",
+      model: model,
       input: inputParams,
     }
 
     console.log("Creating Kie task with params:", {
-      model: kieRequestBody.model,
+      model: model,
       promptLength: prompt.length,
       aspect_ratio: inputParams.aspect_ratio,
       resolution: inputParams.resolution,
@@ -288,7 +294,7 @@ export async function POST(request: NextRequest) {
 
     // Step 2: Poll for status
     const maxPollingAttempts = 180 // 180 attempts * 2 seconds = 6 minutes max
-    const pollingInterval = 2000 // 2 seconds
+    const pollingInterval = 10000 // 10 seconds
 
     for (let attempt = 0; attempt < maxPollingAttempts; attempt++) {
       // Wait before polling

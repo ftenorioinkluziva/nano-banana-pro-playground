@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const model = google("gemini-2.0-flash", {
+    const model = google("gemini-2.5-flash", {
       apiKey: apiKey,
     })
 

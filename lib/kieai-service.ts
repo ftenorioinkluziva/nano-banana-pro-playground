@@ -300,6 +300,169 @@ export class KieAIService {
 
     return videoDataUrl
   }
+
+  // ============================================
+  // Wan 2.6 Model Methods
+  // ============================================
+
+  /**
+   * Generate video using Wan 2.6 models via KIE.AI API
+   * Supports: wan/2-6-text-to-video, wan/2-6-image-to-video, wan/2-6-video-to-video
+   */
+  async generateWithWan26(params: {
+    model: string // "wan/2-6-text-to-video" | "wan/2-6-image-to-video" | "wan/2-6-video-to-video"
+    prompt: string
+    duration?: string // "5", "10", "15" (text/image-to-video) or "5", "10" (video-to-video)
+    resolution?: string // "720p" | "1080p"
+    image_urls?: string[] // For image-to-video
+    video_urls?: string[] // For video-to-video
+    callBackUrl?: string
+  }): Promise<string> {
+    const input: Record<string, any> = {
+      prompt: params.prompt,
+    }
+
+    // Add image_urls or video_urls based on model
+    if (params.image_urls && params.image_urls.length > 0) {
+      input.image_urls = params.image_urls
+    }
+    if (params.video_urls && params.video_urls.length > 0) {
+      input.video_urls = params.video_urls
+    }
+
+    const requestBody: Record<string, any> = {
+      model: params.model,
+      input,
+    }
+
+    // Add optional parameters
+    if (params.duration) {
+      requestBody.duration = params.duration
+    }
+    if (params.resolution) {
+      requestBody.resolution = params.resolution
+    }
+    if (params.callBackUrl) {
+      requestBody.callBackUrl = params.callBackUrl
+    }
+
+    console.log("Wan 2.6 request:", JSON.stringify(requestBody, null, 2))
+
+    const response = await fetch(`${this.baseUrl}/jobs/createTask`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.apiKey}`,
+      },
+      body: JSON.stringify(requestBody),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`Wan 2.6 API error: ${response.status} - ${errorText}`)
+    }
+
+    const result = await response.json()
+
+    if (!result.taskId) {
+      throw new Error(`Wan 2.6 generation failed: ${result.failMsg || "No task ID returned"}`)
+    }
+
+    return result.taskId
+  }
+
+  /**
+   * Check Wan 2.6 task status
+   */
+  async checkWan26Status(taskId: string): Promise<{
+    state: "waiting" | "success" | "fail"
+    resultUrls?: string[]
+    failMsg?: string
+    failCode?: string
+  }> {
+    const response = await fetch(`${this.baseUrl}/jobs/recordInfo?taskId=${taskId}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+      },
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`Wan 2.6 status check error: ${response.status} - ${errorText}`)
+    }
+
+    const result = await response.json()
+
+    return {
+      state: result.state || "waiting",
+      resultUrls: result.resultJson?.resultUrls || [],
+      failMsg: result.failMsg,
+      failCode: result.failCode,
+    }
+  }
+
+  /**
+   * Generate video with Wan 2.6 and poll until complete
+   */
+  async generateWithWan26AndPoll(
+    params: {
+      model: string
+      prompt: string
+      duration?: string
+      resolution?: string
+      image_urls?: string[]
+      video_urls?: string[]
+    },
+    options: {
+      maxAttempts?: number
+      pollingInterval?: number
+      onProgress?: (attempt: number, maxAttempts: number) => void
+    } = {}
+  ): Promise<{ videoUrl: string; taskId: string }> {
+    const maxAttempts = options.maxAttempts || 120 // 20 minutes with 10s intervals
+    const pollingInterval = options.pollingInterval || 10000 // 10 seconds
+
+    console.log(`Starting Wan 2.6 video generation with model: ${params.model}...`)
+    const taskId = await this.generateWithWan26(params)
+    console.log("Wan 2.6 task created:", taskId)
+
+    let attempts = 0
+    while (attempts < maxAttempts) {
+      attempts++
+      console.log(`Wan 2.6 polling... (attempt ${attempts}/${maxAttempts})`)
+
+      if (options.onProgress) {
+        options.onProgress(attempts, maxAttempts)
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, pollingInterval))
+
+      const status = await this.checkWan26Status(taskId)
+
+      if (status.state === "success") {
+        if (!status.resultUrls || status.resultUrls.length === 0) {
+          throw new Error("Wan 2.6 generation succeeded but no video URL returned")
+        }
+
+        console.log("Wan 2.6 video generation complete:", status.resultUrls[0])
+        return {
+          videoUrl: status.resultUrls[0],
+          taskId: taskId,
+        }
+      }
+
+      if (status.state === "fail") {
+        throw new Error(
+          `Wan 2.6 generation failed: ${status.failMsg || "Unknown error"} (Code: ${status.failCode || "unknown"})`
+        )
+      }
+
+      // state is "waiting", continue polling
+    }
+
+    throw new Error("Wan 2.6 video generation timeout")
+  }
 }
 
 /**

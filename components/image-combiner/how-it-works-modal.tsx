@@ -51,7 +51,7 @@ export function HowItWorksModal({ open, onOpenChange }: HowItWorksModalProps) {
                 rel="noopener noreferrer"
                 className="text-teal-400 hover:text-teal-300 underline"
               >
-                Google Gemini 2.0 Flash
+                Google Gemini 2.5 Flash
               </a>
               , it helps you create high-quality creatives, social media posts, and marketing materials
               with speed and creative control. Direct integration with Google's API provides fast and reliable image generation.

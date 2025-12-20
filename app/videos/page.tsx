@@ -51,41 +51,79 @@ export default function VideosPage() {
 
       const formData = new FormData()
 
-      // Add basic params
-      formData.append("prompt", params.prompt)
-      formData.append("mode", params.mode)
-      formData.append("resolution", params.resolution)
-      formData.append("aspectRatio", params.aspectRatio)
-      formData.append("duration", params.duration || "6s")
-      formData.append("model", params.model)
-      if (params.negativePrompt) {
-        formData.append("negativePrompt", params.negativePrompt)
-      }
+      // Check if using new parametrized approach
+      const isParametrized = Boolean(params.modelId && params.generationTypeId)
 
-      // Add mode-specific data
-      if (params.mode === "Frames to Video") {
-        if (params.startFrame) {
-          formData.append("startFrame", params.startFrame.file)
+      if (isParametrized) {
+        // New parametrized approach
+        formData.append("modelId", params.modelId!)
+        formData.append("generationTypeId", params.generationTypeId!)
+        formData.append("prompt", params.prompt)
+        formData.append("resolution", params.resolution)
+        formData.append("duration", params.duration || "6s")
+
+        if (params.aspectRatio) {
+          formData.append("aspectRatio", params.aspectRatio)
         }
-        if (params.endFrame) {
-          formData.append("endFrame", params.endFrame.file)
+        if (params.negativePrompt) {
+          formData.append("negativePrompt", params.negativePrompt)
         }
-        if (params.isLooping !== undefined) {
-          formData.append("isLooping", String(params.isLooping))
-        }
-      } else if (params.mode === "References to Video") {
-        if (params.referenceImages && params.referenceImages.length > 0) {
-          // Send reference images with indexed keys as expected by API
-          params.referenceImages.forEach((img, index) => {
-            formData.append(`referenceImage${index}`, img.file)
+
+        // Add images with generic naming
+        if (params.images && params.images.length > 0) {
+          params.images.forEach((img, index) => {
+            formData.append(`image${index}`, img.file)
           })
         }
-        if (params.styleImage) {
-          formData.append("styleImage", params.styleImage.file)
+
+        // Add videos with generic naming
+        if (params.videos && params.videos.length > 0) {
+          params.videos.forEach((vid, index) => {
+            formData.append(`video${index}`, vid.file)
+          })
         }
-      } else if (params.mode === "Extend Video") {
-        if (params.originalTaskId) {
-          formData.append("originalTaskId", params.originalTaskId)
+
+        // Add taskId if present
+        if (params.taskId) {
+          formData.append("taskId", params.taskId)
+        }
+      } else {
+        // Legacy approach
+        formData.append("prompt", params.prompt)
+        formData.append("mode", params.mode!)
+        formData.append("resolution", params.resolution)
+        formData.append("aspectRatio", params.aspectRatio || "16:9")
+        formData.append("duration", params.duration || "6s")
+        formData.append("model", params.model!)
+
+        if (params.negativePrompt) {
+          formData.append("negativePrompt", params.negativePrompt)
+        }
+
+        // Add mode-specific data (legacy)
+        if (params.mode === "Frames to Video") {
+          if (params.startFrame) {
+            formData.append("startFrame", params.startFrame.file)
+          }
+          if (params.endFrame) {
+            formData.append("endFrame", params.endFrame.file)
+          }
+          if (params.isLooping !== undefined) {
+            formData.append("isLooping", String(params.isLooping))
+          }
+        } else if (params.mode === "References to Video") {
+          if (params.referenceImages && params.referenceImages.length > 0) {
+            params.referenceImages.forEach((img, index) => {
+              formData.append(`referenceImage${index}`, img.file)
+            })
+          }
+          if (params.styleImage) {
+            formData.append("styleImage", params.styleImage.file)
+          }
+        } else if (params.mode === "Extend Video") {
+          if (params.originalTaskId) {
+            formData.append("originalTaskId", params.originalTaskId)
+          }
         }
       }
 

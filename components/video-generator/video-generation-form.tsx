@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useRef, useCallback } from "react"
+import React, { useState, useRef, useCallback, useEffect } from "react"
 import {
   Select,
   SelectContent,
@@ -12,10 +12,30 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Upload, Trash2, Play, Sparkles } from "lucide-react"
-import type { GenerateVideoParams, GenerationMode, ImageFile, VideoFile, VeoModel, Resolution, AspectRatio, Duration } from "@/types/video"
+import type {
+  GenerateVideoParams,
+  GenerationMode,
+  ImageFile,
+  VideoFile,
+  VeoModel,
+  Resolution,
+  AspectRatio,
+  Duration,
+  VideoModelId,
+  GenerationTypeId,
+  DurationValue,
+} from "@/types/video"
+import type { Capability } from "@/types/capability"
 import { VeoModel as VeoModelEnum, Resolution as ResolutionEnum, AspectRatio as AspectRatioEnum, GenerationMode as GenerationModeEnum, Duration as DurationEnum } from "@/types/video"
 import { AlertCircle, Lightbulb } from "lucide-react"
 import { EnhancePromptDialog } from "./enhance-prompt-dialog"
+import {
+  AVAILABLE_MODELS,
+  getModelConfig,
+  getGenerationTypeConfig,
+  type ModelConfig,
+  type GenerationTypeConfig,
+} from "@/lib/video-models-config"
 
 interface VideoGenerationFormProps {
   onGenerate: (params: GenerateVideoParams) => Promise<void>
@@ -70,14 +90,30 @@ export function VideoGenerationForm({
   videoHistory = [],
   loadingHistory = false,
 }: VideoGenerationFormProps) {
-  const [mode, setMode] = useState<GenerationMode>(GenerationModeEnum.TEXT_TO_VIDEO)
+  // Model and Generation Type selection (new parametrized approach)
+  const [selectedModelId, setSelectedModelId] = useState<VideoModelId>("veo-fast")
+  const [selectedGenerationTypeId, setSelectedGenerationTypeId] = useState<GenerationTypeId>("text-to-video")
+
+  // Get current model and generation type configs
+  const currentModel = getModelConfig(selectedModelId)
+  const currentGenerationType = getGenerationTypeConfig(selectedModelId, selectedGenerationTypeId)
+
+  // Core parameters
   const [prompt, setPrompt] = useState("")
   const [negativePrompt, setNegativePrompt] = useState("")
   const [enhanceDialogOpen, setEnhanceDialogOpen] = useState(false)
+  const [resolution, setResolution] = useState<string>("720p")
+  const [duration, setDuration] = useState<DurationValue>("6s")
+  const [aspectRatio, setAspectRatio] = useState<string>("16:9")
+
+  // Input files (images and videos)
+  const [images, setImages] = useState<ImageFile[]>([])
+  const [videos, setVideos] = useState<VideoFile[]>([])
+  const [taskId, setTaskId] = useState("")
+
+  // Legacy fields for backwards compatibility
+  const [mode, setMode] = useState<GenerationMode>(GenerationModeEnum.TEXT_TO_VIDEO)
   const [model, setModel] = useState<VeoModel>(VeoModelEnum.VEO_FAST)
-  const [resolution, setResolution] = useState<Resolution>(ResolutionEnum.P720)
-  const [duration, setDuration] = useState<Duration>(DurationEnum.SIX_SECONDS)
-  const [aspectRatio, setAspectRatio] = useState<AspectRatio>(AspectRatioEnum.LANDSCAPE)
   const [startFrame, setStartFrame] = useState<ImageFile | null>(null)
   const [endFrame, setEndFrame] = useState<ImageFile | null>(null)
   const [referenceImages, setReferenceImages] = useState<ImageFile[]>([])
@@ -86,11 +122,54 @@ export function VideoGenerationForm({
   const [originalTaskId, setOriginalTaskId] = useState("")
   const [isLooping, setIsLooping] = useState(false)
 
+  // Capabilities
+  const [capabilities, setCapabilities] = useState<Capability[]>([])
+  const [selectedCapabilityId, setSelectedCapabilityId] = useState<string>("")
+
+  const imagesInputRef = useRef<HTMLInputElement>(null)
+  const videosInputRef = useRef<HTMLInputElement>(null)
+
+  // Legacy refs for backwards compatibility
   const startFrameInputRef = useRef<HTMLInputElement>(null)
   const endFrameInputRef = useRef<HTMLInputElement>(null)
   const styleImageInputRef = useRef<HTMLInputElement>(null)
   const inputVideoInputRef = useRef<HTMLInputElement>(null)
   const referenceImagesInputRef = useRef<HTMLInputElement>(null)
+
+  // Update generation type when model changes
+  useEffect(() => {
+    if (currentModel && currentModel.generationTypes.length > 0) {
+      // Check if current generation type is available in the new model
+      const isTypeAvailable = currentModel.generationTypes.some(
+        (type) => type.id === selectedGenerationTypeId
+      )
+      if (!isTypeAvailable) {
+        // Default to first available type
+        setSelectedGenerationTypeId(currentModel.generationTypes[0].id)
+      }
+    }
+  }, [selectedModelId])
+
+  // Update duration options when generation type changes
+  useEffect(() => {
+    if (currentGenerationType) {
+      const availableDurations = currentGenerationType.parameters.durations
+      // If current duration is not available, set to first available
+      if (!availableDurations.includes(duration)) {
+        setDuration(availableDurations[0] as DurationValue)
+      }
+    }
+  }, [selectedGenerationTypeId, currentGenerationType])
+
+  // Fetch capabilities on component mount
+  useEffect(() => {
+    fetch("/api/capabilities")
+      .then((res) => res.json())
+      .then((data) => {
+        setCapabilities(data.capabilities || [])
+      })
+      .catch((err) => console.error("Error loading capabilities:", err))
+  }, [])
 
   const handleStartFrameChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -154,60 +233,244 @@ export function VideoGenerationForm({
     }
   }, [])
 
+  // New generic handlers for images and videos
+  const handleImagesChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (files) {
+      try {
+        const imageFiles = await Promise.all(
+          Array.from(files).map((file) => fileToImageFile(file))
+        )
+        setImages((prev) => [...prev, ...imageFiles])
+      } catch (error) {
+        console.error("Error converting files:", error)
+      }
+    }
+  }, [])
+
+  const handleVideosChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (files) {
+      try {
+        const videoFiles = await Promise.all(
+          Array.from(files).map((file) => fileToVideoFile(file))
+        )
+        setVideos((prev) => [...prev, ...videoFiles])
+      } catch (error) {
+        console.error("Error converting files:", error)
+      }
+    }
+  }, [])
+
+  const removeImage = useCallback((index: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== index))
+  }, [])
+
+  const removeVideo = useCallback((index: number) => {
+    setVideos((prev) => prev.filter((_, i) => i !== index))
+  }, [])
+
+  // Handle capability selection and auto-fill form fields
+  const handleCapabilitySelect = useCallback((capabilityId: string) => {
+    setSelectedCapabilityId(capabilityId)
+
+    const capability = capabilities.find((c) => c.id === capabilityId)
+    if (!capability) return
+
+    // Auto-fill form fields from capability
+    // Map generation_type to GenerationMode enum
+    const modeMap: Record<string, GenerationMode> = {
+      "TEXT_2_VIDEO": GenerationModeEnum.TEXT_TO_VIDEO,
+      "FIRST_AND_LAST_FRAMES_2_VIDEO": GenerationModeEnum.FRAMES_TO_VIDEO,
+      "REFERENCE_2_VIDEO": GenerationModeEnum.REFERENCES_TO_VIDEO,
+    }
+
+    // Auto-fill mode (generation_type)
+    if (capability.generation_type && modeMap[capability.generation_type]) {
+      setMode(modeMap[capability.generation_type])
+    }
+
+    // Auto-fill aspect ratio
+    if (capability.recommended_aspect_ratio) {
+      const aspectRatioMap: Record<string, AspectRatio> = {
+        "16:9": AspectRatioEnum.LANDSCAPE,
+        "9:16": AspectRatioEnum.PORTRAIT,
+      }
+      const mappedAspectRatio = aspectRatioMap[capability.recommended_aspect_ratio]
+      if (mappedAspectRatio) {
+        setAspectRatio(mappedAspectRatio)
+      }
+    }
+
+    // Note: We need to fetch the full capability details to get base_prompt_template and default_negative_prompt
+    // Fetch full capability details
+    fetch(`/api/capabilities/${capabilityId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.capability) {
+          // Auto-fill prompt with base_prompt_template
+          if (data.capability.base_prompt_template) {
+            setPrompt(data.capability.base_prompt_template)
+          }
+
+          // Auto-fill negative prompt with default_negative_prompt
+          if (data.capability.default_negative_prompt) {
+            setNegativePrompt(data.capability.default_negative_prompt)
+          }
+        }
+      })
+      .catch((err) => console.error("Error loading capability details:", err))
+  }, [capabilities])
+
   const handleGenerateClick = async () => {
-    if (!prompt.trim() && mode !== GenerationModeEnum.EXTEND_VIDEO) {
+    if (!currentGenerationType) {
+      alert("Please select a valid generation type")
+      return
+    }
+
+    // Validate prompt if required
+    if (currentGenerationType.inputs.prompt.required && !prompt.trim()) {
       alert("Please enter a prompt")
       return
     }
 
-    const params: GenerateVideoParams = {
-      prompt,
-      negativePrompt,
-      model: model as VeoModel,
-      aspectRatio: aspectRatio as AspectRatio,
-      resolution: resolution as Resolution,
-      duration: duration as Duration,
-      mode: mode as GenerationMode,
+    // Validate images if required
+    if (currentGenerationType.inputs.images?.required && images.length === 0) {
+      alert(`Please upload at least ${currentGenerationType.inputs.images.min || 1} image(s)`)
+      return
     }
 
-    if (mode === GenerationModeEnum.FRAMES_TO_VIDEO) {
-      params.startFrame = startFrame
-      params.endFrame = endFrame
-      params.isLooping = isLooping
-    } else if (mode === GenerationModeEnum.REFERENCES_TO_VIDEO) {
-      params.referenceImages = referenceImages
-      params.styleImage = styleImage
-    } else if (mode === GenerationModeEnum.EXTEND_VIDEO) {
-      // For Extend Video, we need to pass the originalTaskId
-      // The API route will use this instead of uploading a video
-      params.originalTaskId = originalTaskId
+    // Validate videos if required
+    if (currentGenerationType.inputs.videos?.required && videos.length === 0) {
+      alert(`Please upload at least ${currentGenerationType.inputs.videos.min || 1} video(s)`)
+      return
+    }
+
+    // Validate taskId if required
+    if (currentGenerationType.inputs.taskId?.required && !taskId.trim()) {
+      alert("Please enter a task ID")
+      return
+    }
+
+    const params: GenerateVideoParams = {
+      // New parametrized fields
+      modelId: selectedModelId,
+      generationTypeId: selectedGenerationTypeId,
+
+      // Core parameters
+      prompt,
+      negativePrompt,
+      resolution,
+      duration,
+      aspectRatio,
+
+      // Input files
+      images: images.length > 0 ? images : undefined,
+      videos: videos.length > 0 ? videos : undefined,
+      taskId: taskId || undefined,
+
+      // Legacy fields for backwards compatibility
+      model: model as VeoModel,
+      mode: mode as GenerationMode,
+      startFrame,
+      endFrame,
+      referenceImages,
+      styleImage,
+      inputVideo,
+      originalTaskId,
+      isLooping,
     }
 
     await onGenerate(params)
   }
 
-  const canGenerate =
-    !generating &&
-    prompt.trim() &&
-    ((mode === GenerationModeEnum.FRAMES_TO_VIDEO && startFrame) ||
-      (mode === GenerationModeEnum.REFERENCES_TO_VIDEO && referenceImages.length > 0) ||
-      (mode === GenerationModeEnum.EXTEND_VIDEO && originalTaskId.trim()) ||
-      mode === GenerationModeEnum.TEXT_TO_VIDEO)
+  // Dynamic canGenerate based on current generation type config
+  const canGenerate = React.useMemo(() => {
+    if (generating || !currentGenerationType) return false
+
+    // Check prompt requirement
+    if (currentGenerationType.inputs.prompt.required && !prompt.trim()) {
+      return false
+    }
+
+    // Check images requirement
+    if (currentGenerationType.inputs.images?.required && images.length === 0) {
+      return false
+    }
+
+    // Check videos requirement
+    if (currentGenerationType.inputs.videos?.required && videos.length === 0) {
+      return false
+    }
+
+    // Check taskId requirement
+    if (currentGenerationType.inputs.taskId?.required && !taskId.trim()) {
+      return false
+    }
+
+    return true
+  }, [generating, currentGenerationType, prompt, images, videos, taskId])
 
   return (
     <div className="w-full max-w-2xl mx-auto space-y-6">
-      {/* Generation Mode Selection */}
+      {/* Model Selection - FIRST FIELD */}
       <div className="space-y-2">
-        <Label>Generation Mode</Label>
-        <Select value={mode} onValueChange={(value) => setMode(value as GenerationMode)}>
+        <Label>Model</Label>
+        <p className="text-xs text-zinc-500">Choose the AI model for video generation</p>
+        <Select
+          value={selectedModelId}
+          onValueChange={(value) => {
+            setSelectedModelId(value as VideoModelId)
+            // Reset images, videos, and taskId when changing models
+            setImages([])
+            setVideos([])
+            setTaskId("")
+          }}
+          disabled={generating}
+        >
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={GenerationModeEnum.TEXT_TO_VIDEO}>Text to Video</SelectItem>
-            <SelectItem value={GenerationModeEnum.FRAMES_TO_VIDEO}>Frames to Video</SelectItem>
-            <SelectItem value={GenerationModeEnum.REFERENCES_TO_VIDEO}>References to Video</SelectItem>
-            <SelectItem value={GenerationModeEnum.EXTEND_VIDEO}>Extend Video</SelectItem>
+            {AVAILABLE_MODELS.map((model) => (
+              <SelectItem key={model.id} value={model.id}>
+                <div className="flex flex-col">
+                  <span className="font-medium">{model.displayName}</span>
+                  <span className="text-xs text-gray-400">{model.description}</span>
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Generation Type Selection - SECOND FIELD */}
+      <div className="space-y-2">
+        <Label>Generation Type</Label>
+        <p className="text-xs text-zinc-500">Select the type of video generation</p>
+        <Select
+          value={selectedGenerationTypeId}
+          onValueChange={(value) => {
+            setSelectedGenerationTypeId(value as GenerationTypeId)
+            // Reset files when changing generation type
+            setImages([])
+            setVideos([])
+            setTaskId("")
+          }}
+          disabled={generating}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {currentModel?.generationTypes.map((genType) => (
+              <SelectItem key={genType.id} value={genType.id}>
+                <div className="flex flex-col">
+                  <span className="font-medium">{genType.name}</span>
+                  <span className="text-xs text-gray-400">{genType.description}</span>
+                </div>
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -278,12 +541,55 @@ export function VideoGenerationForm({
         </div>
       )}
 
-      {/* Prompt Input */}
-      {mode !== GenerationModeEnum.EXTEND_VIDEO && (
+      {/* Capability Selector */}
+      {capabilities.length > 0 && (
+        <div className="space-y-2">
+          <Label>Video Style (Capability)</Label>
+          <p className="text-xs text-zinc-500">
+            Choose a pre-configured video style to auto-fill prompt template, aspect ratio, and negative prompt
+          </p>
+          <Select
+            value={selectedCapabilityId}
+            onValueChange={handleCapabilitySelect}
+            disabled={generating}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select a video style..." />
+            </SelectTrigger>
+            <SelectContent>
+              {capabilities.map((cap) => (
+                <SelectItem key={cap.id} value={cap.id}>
+                  <div className="flex flex-col">
+                    <span className="font-medium">{cap.label}</span>
+                    {cap.description && (
+                      <span className="text-xs text-gray-400">{cap.description}</span>
+                    )}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {selectedCapabilityId && (
+            <div className="p-2 bg-gray-900/50 border border-gray-700 rounded text-xs">
+              <p className="text-green-400 flex items-center gap-1">
+                <Lightbulb size={14} />
+                <span>
+                  Style applied: Prompt template, aspect ratio, negative prompt, and generation mode have been auto-filled
+                </span>
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Prompt Input - Dynamic based on config */}
+      {currentGenerationType?.inputs.prompt && (
         <div className="space-y-3">
           <div>
             <div className="flex items-center justify-between mb-2">
-              <Label>Prompt</Label>
+              <Label>
+                Prompt{currentGenerationType.inputs.prompt.required && " *"}
+              </Label>
               <button
                 onClick={() => setEnhanceDialogOpen(true)}
                 disabled={!prompt.trim() || generating}
@@ -293,27 +599,42 @@ export function VideoGenerationForm({
                 Enhance
               </button>
             </div>
-            <p className="text-xs text-zinc-500">Be descriptive: include subject, action, style, camera angle, and ambiance</p>
+            <p className="text-xs text-zinc-500">
+              Be descriptive: include subject, action, style, camera angle, and ambiance
+              {currentGenerationType.inputs.prompt.minLength &&
+                ` (min: ${currentGenerationType.inputs.prompt.minLength} chars)`}
+              {currentGenerationType.inputs.prompt.maxLength &&
+                ` (max: ${currentGenerationType.inputs.prompt.maxLength} chars)`}
+            </p>
             <Textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="Ex: A golden retriever running through a sunlit meadow, film noir style, cinematic lighting, warm bokeh background..."
               disabled={generating}
               className="min-h-24 mt-2"
+              maxLength={currentGenerationType.inputs.prompt.maxLength}
             />
           </div>
 
-          <div>
-            <Label>Negative Prompt (Optional)</Label>
-            <p className="text-xs text-zinc-500 mt-1">Describe what you DON'T want (e.g., "low quality, blurry, distorted")</p>
-            <Textarea
-              value={negativePrompt}
-              onChange={(e) => setNegativePrompt(e.target.value)}
-              placeholder="Ex: cartoon, drawing, low quality, blurry, distorted..."
-              disabled={generating}
-              className="min-h-16 mt-2"
-            />
-          </div>
+          {/* Negative Prompt - only if supported */}
+          {currentGenerationType.inputs.negativePrompt && (
+            <div>
+              <Label>
+                Negative Prompt{currentGenerationType.inputs.negativePrompt.required && " *"}
+              </Label>
+              <p className="text-xs text-zinc-500 mt-1">
+                Describe what you DON'T want (e.g., "low quality, blurry, distorted")
+              </p>
+              <Textarea
+                value={negativePrompt}
+                onChange={(e) => setNegativePrompt(e.target.value)}
+                placeholder="Ex: cartoon, drawing, low quality, blurry, distorted..."
+                disabled={generating}
+                className="min-h-16 mt-2"
+                maxLength={currentGenerationType.inputs.negativePrompt.maxLength}
+              />
+            </div>
+          )}
 
           {/* Prompt Tip */}
           <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-3 flex gap-2 text-sm">
@@ -325,288 +646,237 @@ export function VideoGenerationForm({
         </div>
       )}
 
-      {/* Model Selection */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>Model</Label>
-          <Select value={model} onValueChange={(value) => setModel(value as VeoModel)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={VeoModelEnum.VEO_FAST}>Veo Fast</SelectItem>
-              <SelectItem value={VeoModelEnum.VEO}>Veo (Standard)</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label>Resolution</Label>
-          <Select value={resolution} onValueChange={(value) => setResolution(value as Resolution)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ResolutionEnum.P720}>720p</SelectItem>
-              <SelectItem value={ResolutionEnum.P1080}>1080p</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* Duration and Aspect Ratio */}
-      {mode !== GenerationModeEnum.EXTEND_VIDEO && (
+      {/* Dynamic Parameters Grid: Duration, Resolution, Aspect Ratio */}
+      {currentGenerationType && (
         <div className="grid grid-cols-2 gap-4">
+          {/* Duration */}
           <div className="space-y-2">
             <Label>Duration</Label>
             <Select
               value={duration}
-              onValueChange={(value) => {
-                setDuration(value as Duration)
-                // Auto-adjust resolution if 1080p with non-8s duration
-                if (resolution === ResolutionEnum.P1080 && value !== DurationEnum.EIGHT_SECONDS) {
-                  setResolution(ResolutionEnum.P720)
-                }
-              }}
+              onValueChange={(value) => setDuration(value as DurationValue)}
+              disabled={generating}
             >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={DurationEnum.FOUR_SECONDS}>4 seconds</SelectItem>
-                <SelectItem value={DurationEnum.SIX_SECONDS}>6 seconds</SelectItem>
-                <SelectItem value={DurationEnum.EIGHT_SECONDS}>8 seconds</SelectItem>
+                {currentGenerationType.parameters.durations.map((dur) => (
+                  <SelectItem key={dur} value={dur}>
+                    {dur.endsWith('s') ? dur.replace('s', ' seconds') : `${dur} seconds`}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <p className="text-xs text-zinc-500">Longer videos take more time to generate</p>
           </div>
 
+          {/* Resolution */}
           <div className="space-y-2">
-            <Label>Aspect Ratio</Label>
-            <Select value={aspectRatio} onValueChange={(value) => setAspectRatio(value as AspectRatio)}>
+            <Label>Resolution</Label>
+            <Select
+              value={resolution}
+              onValueChange={(value) => setResolution(value)}
+              disabled={generating}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={AspectRatioEnum.LANDSCAPE}>Landscape (16:9)</SelectItem>
-                <SelectItem value={AspectRatioEnum.PORTRAIT}>Portrait (9:16)</SelectItem>
+                {currentGenerationType.parameters.resolutions.map((res) => (
+                  <SelectItem key={res} value={res}>
+                    {res}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
         </div>
       )}
 
-      {/* Resolution with constraint warning */}
-      <div className="space-y-2">
-        <Label>Resolution</Label>
-        <Select
-          value={resolution}
-          onValueChange={(value) => {
-            const res = value as Resolution
-            // If selecting 1080p, force 8s duration
-            if (res === ResolutionEnum.P1080 && duration !== DurationEnum.EIGHT_SECONDS) {
-              setDuration(DurationEnum.EIGHT_SECONDS)
-            }
-            setResolution(res)
-          }}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ResolutionEnum.P720}>720p - Any duration</SelectItem>
-            <SelectItem value={ResolutionEnum.P1080}>1080p - 8 seconds only</SelectItem>
-          </SelectContent>
-        </Select>
-        {resolution === ResolutionEnum.P1080 && (
-          <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-2 flex gap-2 text-xs">
-            <AlertCircle className="text-gray-400 flex-shrink-0" size={16} />
-            <p className="text-gray-300">1080p only works with 8 seconds duration</p>
-          </div>
-        )}
-      </div>
-
-      {/* Frames to Video Mode */}
-      {mode === GenerationModeEnum.FRAMES_TO_VIDEO && (
-        <div className="space-y-4 border border-gray-800 p-4 rounded-lg">
-          <div>
-            <Label className="block mb-2">Start Frame</Label>
-            {startFrame ? (
-              <div className="relative inline-block">
-                <img
-                  src={URL.createObjectURL(startFrame.file)}
-                  alt="start frame"
-                  className="w-32 h-24 object-cover rounded-lg"
-                />
-                <button
-                  onClick={() => setStartFrame(null)}
-                  className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white p-1 rounded"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => startFrameInputRef.current?.click()}
-                className="border-2 border-dashed border-gray-800 rounded-lg p-6 w-full text-center hover:border-gray-600 transition-colors"
-              >
-                <Upload className="mx-auto mb-2" />
-                <p className="text-sm text-zinc-400">Upload Start Frame</p>
-              </button>
-            )}
-            <input
-              ref={startFrameInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleStartFrameChange}
-              className="hidden"
-            />
-          </div>
-
-          <div>
-            <Label className="block mb-2">End Frame (Optional)</Label>
-            {endFrame ? (
-              <div className="relative inline-block">
-                <img
-                  src={URL.createObjectURL(endFrame.file)}
-                  alt="end frame"
-                  className="w-32 h-24 object-cover rounded-lg"
-                />
-                <button
-                  onClick={() => setEndFrame(null)}
-                  className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white p-1 rounded"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => endFrameInputRef.current?.click()}
-                className="border-2 border-dashed border-gray-800 rounded-lg p-6 w-full text-center hover:border-gray-600 transition-colors"
-              >
-                <Upload className="mx-auto mb-2" />
-                <p className="text-sm text-zinc-400">Upload End Frame</p>
-              </button>
-            )}
-            <input
-              ref={endFrameInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleEndFrameChange}
-              className="hidden"
-            />
-          </div>
-
-          <label className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              checked={isLooping}
-              onChange={(e) => setIsLooping(e.target.checked)}
-              className="rounded"
-            />
-            <span className="text-sm">Create looping video</span>
-          </label>
-        </div>
-      )}
-
-      {/* References to Video Mode */}
-      {mode === GenerationModeEnum.REFERENCES_TO_VIDEO && (
-        <div className="space-y-4 border border-gray-800 p-4 rounded-lg">
-          <div>
-            <Label className="block mb-2">Reference Images</Label>
-            <div className="flex flex-wrap gap-3 mb-3">
-              {referenceImages.map((img, idx) => (
-                <div key={idx} className="relative">
-                  <img
-                    src={URL.createObjectURL(img.file)}
-                    alt={`reference ${idx}`}
-                    className="w-24 h-24 object-cover rounded-lg"
-                  />
-                  <button
-                    onClick={() => setReferenceImages((prev) => prev.filter((_, i) => i !== idx))}
-                    className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white p-1 rounded"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
+      {/* Aspect Ratio - only if supported by the model */}
+      {currentGenerationType?.parameters.aspectRatios && currentGenerationType.parameters.aspectRatios.length > 0 && (
+        <div className="space-y-2">
+          <Label>Aspect Ratio</Label>
+          <Select
+            value={aspectRatio}
+            onValueChange={(value) => setAspectRatio(value)}
+            disabled={generating}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {currentGenerationType.parameters.aspectRatios.map((ratio) => (
+                <SelectItem key={ratio} value={ratio}>
+                  {ratio === "16:9" ? "Landscape (16:9)" : ratio === "9:16" ? "Portrait (9:16)" : ratio}
+                </SelectItem>
               ))}
-            </div>
-            <button
-              onClick={() => referenceImagesInputRef.current?.click()}
-              className="border-2 border-dashed border-gray-800 rounded-lg p-6 w-full text-center hover:border-gray-600 transition-colors"
-            >
-              <Upload className="mx-auto mb-2" />
-              <p className="text-sm text-zinc-400">Add Reference Images</p>
-            </button>
-            <input
-              ref={referenceImagesInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleReferenceImagesChange}
-              className="hidden"
-            />
-          </div>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
+      {/* Dynamic Images Input - For image-to-video, frames-to-video, references-to-video */}
+      {currentGenerationType?.inputs.images && (
+        <div className="space-y-4 border border-gray-800 p-4 rounded-lg">
           <div>
-            <Label className="block mb-2">Style Image (Optional)</Label>
-            {styleImage ? (
-              <div className="relative inline-block">
-                <img
-                  src={URL.createObjectURL(styleImage.file)}
-                  alt="style"
-                  className="w-32 h-24 object-cover rounded-lg"
-                />
-                <button
-                  onClick={() => setStyleImage(null)}
-                  className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white p-1 rounded"
-                >
-                  <Trash2 size={16} />
-                </button>
+            <Label className="block mb-2">
+              {currentGenerationType.inputs.images.required && "* "}
+              Images ({images.length}
+              {currentGenerationType.inputs.images.max &&
+                `/${currentGenerationType.inputs.images.max}`}
+              )
+            </Label>
+            <p className="text-xs text-zinc-500 mb-3">
+              {currentGenerationType.inputs.images.required
+                ? `Upload at least ${currentGenerationType.inputs.images.min || 1} image(s)`
+                : "Upload images (optional)"}
+              {currentGenerationType.inputs.images.formats &&
+                ` - Supported formats: ${currentGenerationType.inputs.images.formats.join(", ")}`}
+              {currentGenerationType.inputs.images.maxSizeMB &&
+                ` - Max ${currentGenerationType.inputs.images.maxSizeMB}MB per file`}
+            </p>
+
+            {/* Image Grid */}
+            {images.length > 0 && (
+              <div className="flex flex-wrap gap-3 mb-3">
+                {images.map((img, idx) => (
+                  <div key={idx} className="relative">
+                    <img
+                      src={URL.createObjectURL(img.file)}
+                      alt={`image ${idx + 1}`}
+                      className="w-24 h-24 object-cover rounded-lg"
+                    />
+                    <button
+                      onClick={() => removeImage(idx)}
+                      className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white p-1 rounded"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
               </div>
-            ) : (
-              <button
-                onClick={() => styleImageInputRef.current?.click()}
-                className="border-2 border-dashed border-gray-800 rounded-lg p-6 w-full text-center hover:border-gray-600 transition-colors"
-              >
-                <Upload className="mx-auto mb-2" />
-                <p className="text-sm text-zinc-400">Upload Style Image</p>
-              </button>
             )}
-            <input
-              ref={styleImageInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleStyleImageChange}
-              className="hidden"
-            />
+
+            {/* Upload Button */}
+            {(!currentGenerationType.inputs.images.max ||
+              images.length < currentGenerationType.inputs.images.max) && (
+              <>
+                <button
+                  onClick={() => imagesInputRef.current?.click()}
+                  className="border-2 border-dashed border-gray-800 rounded-lg p-6 w-full text-center hover:border-gray-600 transition-colors"
+                  disabled={generating}
+                >
+                  <Upload className="mx-auto mb-2" />
+                  <p className="text-sm text-zinc-400">
+                    {images.length === 0 ? "Upload Images" : "Add More Images"}
+                  </p>
+                </button>
+                <input
+                  ref={imagesInputRef}
+                  type="file"
+                  accept={currentGenerationType.inputs.images.formats?.join(",") || "image/*"}
+                  multiple
+                  onChange={handleImagesChange}
+                  className="hidden"
+                />
+              </>
+            )}
           </div>
         </div>
       )}
 
-      {/* Extend Video Mode */}
-      {mode === GenerationModeEnum.EXTEND_VIDEO && (
+      {/* Dynamic Videos Input - For video-to-video */}
+      {currentGenerationType?.inputs.videos && (
+        <div className="space-y-4 border border-gray-800 p-4 rounded-lg">
+          <div>
+            <Label className="block mb-2">
+              {currentGenerationType.inputs.videos.required && "* "}
+              Videos ({videos.length}
+              {currentGenerationType.inputs.videos.max &&
+                `/${currentGenerationType.inputs.videos.max}`}
+              )
+            </Label>
+            <p className="text-xs text-zinc-500 mb-3">
+              {currentGenerationType.inputs.videos.required
+                ? `Upload at least ${currentGenerationType.inputs.videos.min || 1} video(s)`
+                : "Upload videos (optional)"}
+              {currentGenerationType.inputs.videos.formats &&
+                ` - Supported formats: ${currentGenerationType.inputs.videos.formats.join(", ")}`}
+              {currentGenerationType.inputs.videos.maxSizeMB &&
+                ` - Max ${currentGenerationType.inputs.videos.maxSizeMB}MB per file`}
+            </p>
+
+            {/* Video List */}
+            {videos.length > 0 && (
+              <div className="flex flex-col gap-2 mb-3">
+                {videos.map((vid, idx) => (
+                  <div key={idx} className="flex items-center gap-2 p-2 bg-gray-900/50 rounded">
+                    <Play size={16} className="text-gray-400" />
+                    <span className="text-sm flex-1 truncate">{vid.file.name}</span>
+                    <button
+                      onClick={() => removeVideo(idx)}
+                      className="bg-red-500 hover:bg-red-600 text-white p-1 rounded"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Upload Button */}
+            {(!currentGenerationType.inputs.videos.max ||
+              videos.length < currentGenerationType.inputs.videos.max) && (
+              <>
+                <button
+                  onClick={() => videosInputRef.current?.click()}
+                  className="border-2 border-dashed border-gray-800 rounded-lg p-6 w-full text-center hover:border-gray-600 transition-colors"
+                  disabled={generating}
+                >
+                  <Upload className="mx-auto mb-2" />
+                  <p className="text-sm text-zinc-400">
+                    {videos.length === 0 ? "Upload Videos" : "Add More Videos"}
+                  </p>
+                </button>
+                <input
+                  ref={videosInputRef}
+                  type="file"
+                  accept={currentGenerationType.inputs.videos.formats?.join(",") || "video/*"}
+                  multiple
+                  onChange={handleVideosChange}
+                  className="hidden"
+                />
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Dynamic Task ID Input - For extend-video */}
+      {currentGenerationType?.inputs.taskId && (
         <div className="space-y-4 border border-gray-800 p-4 rounded-lg bg-black/30">
           {/* Video History Selector */}
           {videoHistory.length > 0 && (
             <div>
               <Label className="block mb-2">Select a Previous Video</Label>
               <p className="text-xs text-zinc-500 mb-3">
-                Choose from your previously generated videos to extend
+                Choose from your previously generated videos
               </p>
               <Select
-                value={originalTaskId}
-                onValueChange={(value) => setOriginalTaskId(value)}
+                value={taskId}
+                onValueChange={(value) => setTaskId(value)}
                 disabled={loadingHistory || generating}
               >
                 <SelectTrigger className="w-full bg-zinc-900 border-gray-700">
-                  <SelectValue placeholder={loadingHistory ? "Loading videos..." : "Select a video to extend..."} />
+                  <SelectValue placeholder={loadingHistory ? "Loading videos..." : "Select a video..."} />
                 </SelectTrigger>
                 <SelectContent className="bg-zinc-900 border-gray-700">
                   {videoHistory
-                    .filter((video) => video.task_id && video.mode !== "Extend Video")
+                    .filter((video) => video.task_id)
                     .map((video) => (
-                      <SelectItem key={video.id} value={video.task_id} className="text-white">
+                      <SelectItem key={video.id} value={video.task_id!} className="text-white">
                         <div className="flex flex-col">
                           <span className="font-medium truncate max-w-[300px]">
                             {video.prompt.substring(0, 60)}
@@ -625,21 +895,27 @@ export function VideoGenerationForm({
 
           {/* Manual Task ID Input */}
           <div>
-            <Label className="block mb-2">Or Enter Task ID Manually</Label>
-            <p className="text-xs text-zinc-500 mb-3">
-              Enter the task ID from a previously generated video using Veo 3.1 API
-            </p>
+            <Label className="block mb-2">
+              {currentGenerationType.inputs.taskId.required && "* "}
+              Or Enter Task ID Manually
+            </Label>
+            {currentGenerationType.inputs.taskId.description && (
+              <p className="text-xs text-zinc-500 mb-3">
+                {currentGenerationType.inputs.taskId.description}
+              </p>
+            )}
             <input
               type="text"
-              value={originalTaskId}
-              onChange={(e) => setOriginalTaskId(e.target.value)}
-              placeholder="veo_task_abc123..."
+              value={taskId}
+              onChange={(e) => setTaskId(e.target.value)}
+              placeholder="task_abc123..."
               className="w-full px-3 py-2 bg-zinc-900 border border-gray-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-white transition-colors"
+              disabled={generating}
             />
-            {originalTaskId && (
+            {taskId && (
               <p className="mt-2 text-xs text-green-400 flex items-center gap-1">
                 <Lightbulb size={14} />
-                Task ID set. The video will be extended based on this original generation.
+                Task ID set successfully
               </p>
             )}
           </div>

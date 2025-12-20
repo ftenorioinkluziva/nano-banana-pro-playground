@@ -12,6 +12,8 @@ const btnClassName = "w-full h-10 md:h-12 text-sm md:base font-semibold bg-white
 interface InputSectionProps {
   prompt: string
   setPrompt: (prompt: string) => void
+  model: "nano-banana-pro" | "z-image"
+  setModel: (model: "nano-banana-pro" | "z-image") => void
   resolution: "1K" | "2K" | "4K"
   setResolution: (resolution: "1K" | "2K" | "4K") => void
   outputFormat: "PNG" | "JPG"
@@ -50,6 +52,8 @@ interface InputSectionProps {
 export function InputSection({
   prompt,
   setPrompt,
+  model,
+  setModel,
   resolution,
   setResolution,
   outputFormat,
@@ -87,6 +91,36 @@ export function InputSection({
   return (
     <div className="flex flex-col h-full min-h-0">
       <div className="space-y-3 md:space-y-4 min-h-0 flex flex-col">
+        {/* Model Selection */}
+        <div className="space-y-2">
+          <label className="text-sm md:text-base font-medium text-gray-300 block">model</label>
+          <p className="text-xs text-gray-400">AI model to use for image generation</p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setModel("nano-banana-pro")}
+              className={cn(
+                "h-10 md:h-12 text-sm md:text-base font-semibold transition-all border rounded",
+                model === "nano-banana-pro"
+                  ? "bg-white text-black border-white"
+                  : "bg-black/50 text-white border-gray-600 hover:bg-gray-700"
+              )}
+            >
+              Nano Banana Pro
+            </button>
+            <button
+              onClick={() => setModel("z-image")}
+              className={cn(
+                "h-10 md:h-12 text-sm md:text-base font-semibold transition-all border rounded",
+                model === "z-image"
+                  ? "bg-white text-black border-white"
+                  : "bg-black/50 text-white border-gray-600 hover:bg-gray-700"
+              )}
+            >
+              Z Image
+            </button>
+          </div>
+        </div>
+
         {/* Prompt Section */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
@@ -196,12 +230,13 @@ export function InputSection({
           )}
         </div>
 
-        {/* Image Input Section */}
-        <div className="space-y-2">
-          <div className="flex flex-col gap-1">
-            <label className="text-sm md:text-base font-medium text-gray-300">image_input</label>
-            <p className="text-xs text-gray-400">Input images to transform or use as reference (supports up to 8 images)</p>
-          </div>
+        {/* Image Input Section - Only for nano-banana-pro */}
+        {model === "nano-banana-pro" && (
+          <div className="space-y-2">
+            <div className="flex flex-col gap-1">
+              <label className="text-sm md:text-base font-medium text-gray-300">image_input</label>
+              <p className="text-xs text-gray-400">Input images to transform or use as reference (supports up to 8 images)</p>
+            </div>
 
           <div className="inline-flex bg-black/50 border border-gray-600">
             <button
@@ -336,7 +371,8 @@ export function InputSection({
               />
             </div>
           )}
-        </div>
+          </div>
+        )}
 
         {/* Aspect Ratio */}
         <div className="space-y-2">
@@ -359,76 +395,80 @@ export function InputSection({
           </Select>
         </div>
 
-        {/* Resolution */}
-        <div className="space-y-2">
-          <label className="text-sm md:text-base font-medium text-gray-300 block">resolution</label>
-          <p className="text-xs text-gray-400">Resolution of the generated image</p>
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              onClick={() => setResolution("1K")}
-              className={cn(
-                "h-10 md:h-12 text-sm md:text-base font-semibold transition-all border rounded",
-                resolution === "1K"
-                  ? "bg-white text-black border-white"
-                  : "bg-black/50 text-white border-gray-600 hover:bg-gray-700"
-              )}
-            >
-              1K
-            </button>
-            <button
-              onClick={() => setResolution("2K")}
-              className={cn(
-                "h-10 md:h-12 text-sm md:text-base font-semibold transition-all border rounded",
-                resolution === "2K"
-                  ? "bg-white text-black border-white"
-                  : "bg-black/50 text-white border-gray-600 hover:bg-gray-700"
-              )}
-            >
-              2K
-            </button>
-            <button
-              onClick={() => setResolution("4K")}
-              className={cn(
-                "h-10 md:h-12 text-sm md:text-base font-semibold transition-all border rounded",
-                resolution === "4K"
-                  ? "bg-white text-black border-white"
-                  : "bg-black/50 text-white border-gray-600 hover:bg-gray-700"
-              )}
-            >
-              4K
-            </button>
+        {/* Resolution - Only for nano-banana-pro */}
+        {model === "nano-banana-pro" && (
+          <div className="space-y-2">
+            <label className="text-sm md:text-base font-medium text-gray-300 block">resolution</label>
+            <p className="text-xs text-gray-400">Resolution of the generated image</p>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={() => setResolution("1K")}
+                className={cn(
+                  "h-10 md:h-12 text-sm md:text-base font-semibold transition-all border rounded",
+                  resolution === "1K"
+                    ? "bg-white text-black border-white"
+                    : "bg-black/50 text-white border-gray-600 hover:bg-gray-700"
+                )}
+              >
+                1K
+              </button>
+              <button
+                onClick={() => setResolution("2K")}
+                className={cn(
+                  "h-10 md:h-12 text-sm md:text-base font-semibold transition-all border rounded",
+                  resolution === "2K"
+                    ? "bg-white text-black border-white"
+                    : "bg-black/50 text-white border-gray-600 hover:bg-gray-700"
+                )}
+              >
+                2K
+              </button>
+              <button
+                onClick={() => setResolution("4K")}
+                className={cn(
+                  "h-10 md:h-12 text-sm md:text-base font-semibold transition-all border rounded",
+                  resolution === "4K"
+                    ? "bg-white text-black border-white"
+                    : "bg-black/50 text-white border-gray-600 hover:bg-gray-700"
+                )}
+              >
+                4K
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Output Format */}
-        <div className="space-y-2">
-          <label className="text-sm md:text-base font-medium text-gray-300 block">output_format</label>
-          <p className="text-xs text-gray-400">Format of the output image</p>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => setOutputFormat("PNG")}
-              className={cn(
-                "h-10 md:h-12 text-sm md:text-base font-semibold transition-all border rounded",
-                outputFormat === "PNG"
-                  ? "bg-white text-black border-white"
-                  : "bg-black/50 text-white border-gray-600 hover:bg-gray-700"
-              )}
-            >
-              PNG
-            </button>
-            <button
-              onClick={() => setOutputFormat("JPG")}
-              className={cn(
-                "h-10 md:h-12 text-sm md:text-base font-semibold transition-all border rounded",
-                outputFormat === "JPG"
-                  ? "bg-white text-black border-white"
-                  : "bg-black/50 text-white border-gray-600 hover:bg-gray-700"
-              )}
-            >
-              JPG
-            </button>
+        {/* Output Format - Only for nano-banana-pro */}
+        {model === "nano-banana-pro" && (
+          <div className="space-y-2">
+            <label className="text-sm md:text-base font-medium text-gray-300 block">output_format</label>
+            <p className="text-xs text-gray-400">Format of the output image</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setOutputFormat("PNG")}
+                className={cn(
+                  "h-10 md:h-12 text-sm md:text-base font-semibold transition-all border rounded",
+                  outputFormat === "PNG"
+                    ? "bg-white text-black border-white"
+                    : "bg-black/50 text-white border-gray-600 hover:bg-gray-700"
+                )}
+              >
+                PNG
+              </button>
+              <button
+                onClick={() => setOutputFormat("JPG")}
+                className={cn(
+                  "h-10 md:h-12 text-sm md:text-base font-semibold transition-all border rounded",
+                  outputFormat === "JPG"
+                    ? "bg-white text-black border-white"
+                    : "bg-black/50 text-white border-gray-600 hover:bg-gray-700"
+                )}
+              >
+                JPG
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Generate Button */}
         <div className="pt-2">

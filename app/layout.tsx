@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     "content creation tools",
     "AI for creators",
     "Google Gemini",
-    "Gemini 2.0 Flash",
+    "Gemini 2.5 Flash",
   ],
   authors: [{ name: "v0" }],
   creator: "v0",

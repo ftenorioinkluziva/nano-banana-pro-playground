@@ -7,6 +7,7 @@ import type { Generation } from "../types"
 
 interface UseImageGenerationProps {
   prompt: string
+  model: "nano-banana-pro" | "z-image"
   aspectRatio: string
   resolution: "1K" | "2K" | "4K"
   outputFormat: "PNG" | "JPG"
@@ -58,6 +59,7 @@ const playSuccessSound = () => {
 
 export function useImageGeneration({
   prompt,
+  model,
   aspectRatio,
   resolution,
   outputFormat,
@@ -160,6 +162,7 @@ export function useImageGeneration({
         try {
           const formData = new FormData()
           formData.append("prompt", effectivePrompt)
+          formData.append("model", model)
           formData.append("aspectRatio", effectiveAspectRatio)
           formData.append("resolution", resolution)
           formData.append("outputFormat", outputFormat)
@@ -220,7 +223,7 @@ export function useImageGeneration({
               aspectRatio: data.aspectRatio || effectiveAspectRatio,
               resolution: data.resolution,
               outputFormat: data.outputFormat,
-              model: "nano-banana-pro",
+              model: model,
             }
 
             setGenerations((prev) => prev.filter((gen) => gen.id !== generationId))

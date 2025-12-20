@@ -16,13 +16,12 @@
       "Bash(npm run build:*)",
       "Bash(taskkill:*)",
       "Bash(pnpm dev)",
-      "Bash(Get-Process)",
-      "Bash(Where-Object {$_ProcessName -like \"*node*\" -or $_ProcessName -like \"*next*\"})",
-      "Bash(Stop-Process -Force -ErrorAction SilentlyContinue)",
-      "Bash(Start-Sleep -Seconds 2)",
-      "Bash(Write-Host \"✓ Todas as instâncias encerradas\")",
+      "Bash(Get-Process:*)",
+      "Bash(Stop-Process:*)",
+      "Bash(Start-Sleep:*)",
+      "Bash(Write-Host:*)",
       "Bash(pkill:*)",
-      "Bash(xargs kill -9)",
+      "Bash(xargs:*)",
       "Bash(kill:*)",
       "mcp__neon__list_projects",
       "mcp__neon__search",
@@ -41,7 +40,10 @@
       "WebFetch(domain:api.kie.ai)",
       "Bash(curl:*)",
       "Bash(node test-db-connection.js:*)",
-      "Bash(python -m json.tool:*)"
+      "Bash(python -m json.tool:*)",
+      "Bash(find:*)",
+      "Bash(cat:*)",
+      "WebFetch(domain:greenlinepremium.com.br)"
     ]
   }
 }
