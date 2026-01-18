@@ -24,7 +24,9 @@ RUN npm install -g pnpm
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build application
+# Build application (dummy DATABASE_URL for build-time module evaluation)
+ARG DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
+ENV DATABASE_URL=$DATABASE_URL
 RUN pnpm build
 
 # Stage 3: Runner
