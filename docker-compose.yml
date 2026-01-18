@@ -6,7 +6,7 @@ services:
     container_name: nano-banana-app
     restart: always
     ports:
-      - "3006:3000" # Porta Externa 3006 -> Interna 3000
+      - "3006:3000"
     env_file:
       - .env
     environment:

@@ -2,13 +2,13 @@ name: Deploy to Hetzner
 
 on:
   push:
-    branches: [ "main" ]  # Se sua branch principal chamar "master", mude aqui
+    branches: [ "main" ]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy via SSH
+      - name: Executar comandos via SSH
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.HOST }}
@@ -16,17 +16,14 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
           script: |
-            # Entra na pasta do projeto no servidor
             cd /root/nano-banana
             
-            # Descarta alterações locais para evitar conflito
+            # Garante que o repo local está limpo para receber a atualização
             git reset --hard
-            
-            # Baixa a versão nova do GitHub
             git pull origin main
             
-            # Reconstrói os containers (pode demorar uns minutos)
+            # Reconstrói e sobe o container
             docker compose up -d --build
             
-            # Limpa lixo antigo para economizar espaço
+            # Limpa imagens antigas para economizar espaço
             docker image prune -f
