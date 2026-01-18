@@ -268,7 +268,7 @@ export default function CapabilitiesPage() {
         ))}
       </div>
 
-      {/* Create/Edit Dialog */}
+      {/* Create/Edit Dialog*/}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
