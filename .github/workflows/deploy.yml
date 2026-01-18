@@ -23,7 +23,8 @@ jobs:
             git pull origin main
             
             # Reconstrói e sobe o container
-            docker compose up -d --build
+            docker compose build --no-cache
+            docker compose up -d
             
             # Limpa imagens antigas para economizar espaço
             docker image prune -f
