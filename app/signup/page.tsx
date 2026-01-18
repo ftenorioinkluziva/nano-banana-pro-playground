@@ -42,12 +42,17 @@ export default function SignupPage() {
     setIsLoading(true)
 
     try {
-      await signUp.email({
+      const result = await signUp.email({
         name,
         email,
         password,
         callbackURL: "/",
       })
+
+      if (result.error) {
+        toast.error(result.error.message || "Signup failed. Email may already be in use.")
+        return
+      }
 
       toast.success("Account created successfully!")
       router.push("/")

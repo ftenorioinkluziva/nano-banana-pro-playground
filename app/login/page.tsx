@@ -32,11 +32,16 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      await signIn.email({
+      const result = await signIn.email({
         email,
         password,
         callbackURL: callbackUrl,
       })
+
+      if (result.error) {
+        toast.error(result.error.message || "Login failed. Please check your credentials.")
+        return
+      }
 
       toast.success("Logged in successfully!")
       router.push(callbackUrl)
