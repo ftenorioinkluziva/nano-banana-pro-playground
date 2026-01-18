@@ -1,4 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { requireAuth } from "@/lib/auth-session"
+import { getNeonClient } from "@/lib/db"
 
 export const dynamic = "force-dynamic"
 
@@ -12,19 +14,20 @@ interface ErrorResponse {
  */
 export async function GET(request: NextRequest) {
   try {
+    const session = await requireAuth()
+    const userId = session.user.id
+
     const searchParams = request.nextUrl.searchParams
     const productId = searchParams.get("product_id")
     const limit = parseInt(searchParams.get("limit") || "50")
     const offset = parseInt(searchParams.get("offset") || "0")
 
-    // Fetch from database
-    const { neon } = await import("@neondatabase/serverless")
-    const sql = neon(process.env.DATABASE_URL!)
+    const sql = getNeonClient()
 
     let scripts
 
     if (productId) {
-      // Filter by product
+      // Filter by product and user
       scripts = await sql`
         SELECT
           s.id,
@@ -43,12 +46,13 @@ export async function GET(request: NextRequest) {
         FROM scripts s
         LEFT JOIN products p ON s.product_id = p.id
         WHERE s.product_id = ${parseInt(productId)}
+        AND s.user_id = ${userId}
         ORDER BY s.created_at DESC
         LIMIT ${limit}
         OFFSET ${offset}
       `
     } else {
-      // Get all scripts
+      // Get all scripts for the user
       scripts = await sql`
         SELECT
           s.id,
@@ -66,16 +70,17 @@ export async function GET(request: NextRequest) {
           p.image_url as product_image_url
         FROM scripts s
         LEFT JOIN products p ON s.product_id = p.id
+        WHERE s.user_id = ${userId}
         ORDER BY s.created_at DESC
         LIMIT ${limit}
         OFFSET ${offset}
       `
     }
 
-    // Get total count
+    // Get total count for the user
     const countResult = productId
-      ? await sql`SELECT COUNT(*) as count FROM scripts WHERE product_id = ${parseInt(productId)}`
-      : await sql`SELECT COUNT(*) as count FROM scripts`
+      ? await sql`SELECT COUNT(*) as count FROM scripts WHERE product_id = ${parseInt(productId)} AND user_id = ${userId}`
+      : await sql`SELECT COUNT(*) as count FROM scripts WHERE user_id = ${userId}`
 
     const totalCount = parseInt(countResult[0].count)
 
@@ -90,6 +95,10 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
     console.error("Error fetching scripts:", error)
 
     const errorMessage = error instanceof Error ? error.message : "Unknown error occurred"

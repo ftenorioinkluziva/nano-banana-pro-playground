@@ -5,6 +5,7 @@ import { Suspense } from "react"
 import { Analytics } from "@vercel/analytics/react"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { NavigationBar } from "@/components/navigation-bar"
+import { AuthProvider } from "@/components/auth-provider"
 import { Toaster } from "@/components/ui/sonner"
 import "./globals.css"
 
@@ -108,8 +109,10 @@ export default function RootLayout({
       </head>
       <body className="font-mono antialiased" style={{ backgroundColor: "#000000" }}>
         <ErrorBoundary>
-          <NavigationBar />
-          <Suspense fallback={null}>{children}</Suspense>
+          <AuthProvider>
+            <NavigationBar />
+            <Suspense fallback={null}>{children}</Suspense>
+          </AuthProvider>
         </ErrorBoundary>
         <Toaster />
         <Analytics />

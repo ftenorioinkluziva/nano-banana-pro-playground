@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
+import { requireAuth } from "@/lib/auth-session"
+import { getNeonClient } from "@/lib/db"
 
 export const dynamic = "force-dynamic"
-
-const getDatabaseUrl = () => {
-  const dbUrl = process.env.DATABASE_URL
-  if (!dbUrl) {
-    throw new Error("DATABASE_URL environment variable is not set")
-  }
-  return dbUrl
-}
 
 interface SaveVideoRequest {
   id: string
@@ -30,6 +24,10 @@ interface ErrorResponse {
 
 export async function POST(request: NextRequest) {
   try {
+    // 1. REQUIRE AUTHENTICATION
+    const session = await requireAuth()
+    const userId = session.user.id
+
     const body = (await request.json()) as SaveVideoRequest
 
     const {
@@ -55,14 +53,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Import neon only when needed
-    const { neon } = await import("@neondatabase/serverless")
-    const sql = neon(getDatabaseUrl())
+    // 2. GET DATABASE CONNECTION
+    const sql = getNeonClient()
 
-    // Save video generation metadata to database
+    // 3. SAVE TO DATABASE WITH USER_ID
     const result = await sql`
       INSERT INTO videos (
         id,
+        user_id,
         prompt,
         negative_prompt,
         mode,
@@ -75,6 +73,7 @@ export async function POST(request: NextRequest) {
         model
       ) VALUES (
         ${id},
+        ${userId},
         ${prompt},
         ${negativePrompt || null},
         ${mode},
@@ -99,6 +98,14 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error("Error saving video:", error)
+
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json<ErrorResponse>(
+        { error: "Unauthorized", details: "Please log in to continue" },
+        { status: 401 },
+      )
+    }
+
     const errorMessage = error instanceof Error ? error.message : "Unknown error occurred"
 
     return NextResponse.json<ErrorResponse>(

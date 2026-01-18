@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
+import { requireAuth } from "@/lib/auth-session"
+import { getNeonClient } from "@/lib/db"
 
 export const dynamic = "force-dynamic"
-
-const getDatabaseUrl = () => {
-  const dbUrl = process.env.DATABASE_URL
-  if (!dbUrl) {
-    throw new Error("DATABASE_URL environment variable is not set")
-  }
-  return dbUrl
-}
 
 interface SaveGenerationRequest {
   id: string
@@ -29,6 +23,10 @@ interface ErrorResponse {
 
 export async function POST(request: NextRequest) {
   try {
+    // 1. REQUIRE AUTHENTICATION
+    const session = await requireAuth()
+    const userId = session.user.id
+
     const body = (await request.json()) as SaveGenerationRequest
 
     const {
@@ -53,11 +51,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Import neon only when needed
-    const { neon } = await import("@neondatabase/serverless")
-    const sql = neon(getDatabaseUrl())
+    // 2. GET DATABASE CONNECTION
+    const sql = getNeonClient()
 
-    // Save generation metadata to database
+    // 3. SAVE TO DATABASE WITH USER_ID
     // If imageUrls is already a string, parse it first, otherwise use as is
     const imageUrlsArray = imageUrls
       ? (typeof imageUrls === 'string' ? JSON.parse(imageUrls) : imageUrls)
@@ -66,6 +63,7 @@ export async function POST(request: NextRequest) {
     const result = await sql`
       INSERT INTO generations (
         id,
+        user_id,
         prompt,
         enhanced_prompt,
         mode,
@@ -77,6 +75,7 @@ export async function POST(request: NextRequest) {
         description
       ) VALUES (
         ${id},
+        ${userId},
         ${prompt},
         ${enhancedPrompt || null},
         ${mode},
@@ -99,6 +98,14 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error("Error saving generation:", error)
+
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json<ErrorResponse>(
+        { error: "Unauthorized", details: "Please log in to continue" },
+        { status: 401 },
+      )
+    }
+
     const errorMessage = error instanceof Error ? error.message : "Unknown error occurred"
 
     return NextResponse.json<ErrorResponse>(

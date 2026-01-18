@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { requireAuth } from "@/lib/auth-session"
 
 export const dynamic = "force-dynamic"
 
@@ -100,6 +101,9 @@ async function uploadBase64Image(base64Data: string, apiKey: string): Promise<st
 
 export async function POST(request: NextRequest) {
   try {
+    // Require authentication
+    await requireAuth()
+
     const apiKey = process.env.KIEAI_API_KEY
 
     if (!apiKey) {
@@ -377,6 +381,10 @@ export async function POST(request: NextRequest) {
     // Timeout
     throw new Error("Image generation timed out. Please try again.")
   } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
     console.error("Error in image generation:", error)
 
     const errorMessage = error instanceof Error ? error.message : "Unknown error occurred"

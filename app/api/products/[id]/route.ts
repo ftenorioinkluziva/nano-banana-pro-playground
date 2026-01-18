@@ -1,19 +1,16 @@
 import { NextRequest, NextResponse } from "next/server"
-
-// Get database connection from environment variables
-const getDatabaseUrl = () => {
-  const dbUrl = process.env.DATABASE_URL
-  if (!dbUrl) {
-    throw new Error("DATABASE_URL environment variable is not set")
-  }
-  return dbUrl
-}
+import { requireAuth } from "@/lib/auth-session"
+import { getNeonClient } from "@/lib/db"
 
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // REQUIRE AUTHENTICATION
+    const session = await requireAuth()
+    const userId = session.user.id
+
     const { id } = await params
 
     if (!id || isNaN(Number(id))) {
@@ -23,20 +20,19 @@ export async function DELETE(
       )
     }
 
-    // Import postgres only when needed
-    const { neon } = await import("@neondatabase/serverless")
-    const sql = neon(getDatabaseUrl())
+    // GET DATABASE CONNECTION
+    const sql = getNeonClient()
 
-    // Delete product from database
+    // DELETE PRODUCT - VALIDATE OWNERSHIP
     const result = await sql`
       DELETE FROM products
-      WHERE id = ${Number(id)}
+      WHERE id = ${Number(id)} AND user_id = ${userId}
       RETURNING id
     `
 
     if (result.length === 0) {
       return NextResponse.json(
-        { error: "Product not found" },
+        { error: "Product not found or you don't have permission to delete it" },
         { status: 404 }
       )
     }
@@ -49,6 +45,13 @@ export async function DELETE(
     console.error("Error deleting product:", error)
 
     if (error instanceof Error) {
+      if (error.message === "Unauthorized") {
+        return NextResponse.json(
+          { error: "Unauthorized", details: "Please log in to continue" },
+          { status: 401 }
+        )
+      }
+
       return NextResponse.json(
         { error: error.message },
         { status: 500 }
@@ -67,6 +70,10 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // REQUIRE AUTHENTICATION
+    const session = await requireAuth()
+    const userId = session.user.id
+
     const { id } = await params
 
     if (!id || isNaN(Number(id))) {
@@ -133,11 +140,10 @@ export async function PUT(
       parsedNutritionalInfo = nutritional_info
     }
 
-    // Import postgres only when needed
-    const { neon } = await import("@neondatabase/serverless")
-    const sql = neon(getDatabaseUrl())
+    // GET DATABASE CONNECTION
+    const sql = getNeonClient()
 
-    // Update product in database
+    // UPDATE PRODUCT - VALIDATE OWNERSHIP
     const result = await sql`
       UPDATE products
       SET
@@ -156,13 +162,13 @@ export async function PUT(
         image_url = ${image_url || null},
         target_audience = ${target_audience || null},
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${Number(id)}
+      WHERE id = ${Number(id)} AND user_id = ${userId}
       RETURNING *
     `
 
     if (result.length === 0) {
       return NextResponse.json(
-        { error: "Product not found" },
+        { error: "Product not found or you don't have permission to edit it" },
         { status: 404 }
       )
     }
@@ -178,6 +184,13 @@ export async function PUT(
     console.error("Error updating product:", error)
 
     if (error instanceof Error) {
+      if (error.message === "Unauthorized") {
+        return NextResponse.json(
+          { error: "Unauthorized", details: "Please log in to continue" },
+          { status: 401 }
+        )
+      }
+
       // Handle unique constraint violations
       if (error.message.includes("duplicate key") && error.message.includes("slug")) {
         return NextResponse.json(

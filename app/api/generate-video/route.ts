@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { requireAuth } from "@/lib/auth-session"
 import { KieAIService, mapModeToKieAIGenerationType, mapModelToKieAI } from "@/lib/kieai-service"
 import { getGenerationTypeConfig } from "@/lib/video-models-config"
 import type { VideoModelId, GenerationTypeId } from "@/types/video"
@@ -84,6 +85,9 @@ async function fileToBase64(file: File): Promise<string> {
 
 export async function POST(request: NextRequest) {
   try {
+    // Require authentication
+    await requireAuth()
+
     const kieApiKey = process.env.KIEAI_API_KEY
 
     if (!kieApiKey) {
@@ -291,6 +295,10 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
     console.error("Error in generate-video route:", error)
     const errorMessage = error instanceof Error ? error.message : "Unknown error occurred"
 

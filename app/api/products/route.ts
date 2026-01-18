@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
-
-// Get database connection from environment variables
-const getDatabaseUrl = () => {
-  const dbUrl = process.env.DATABASE_URL
-  if (!dbUrl) {
-    throw new Error("DATABASE_URL environment variable is not set")
-  }
-  return dbUrl
-}
+import { requireAuth } from "@/lib/auth-session"
+import { getNeonClient } from "@/lib/db"
 
 export async function POST(request: NextRequest) {
   try {
+    // REQUIRE AUTHENTICATION
+    const session = await requireAuth()
+    const userId = session.user.id
+
     const body = await request.json()
 
     const {
@@ -68,13 +65,13 @@ export async function POST(request: NextRequest) {
       parsedNutritionalInfo = nutritional_info
     }
 
-    // Import postgres only when needed
-    const { neon } = await import("@neondatabase/serverless")
-    const sql = neon(getDatabaseUrl())
+    // GET DATABASE CONNECTION
+    const sql = getNeonClient()
 
-    // Insert product into database
+    // INSERT PRODUCT WITH USER_ID
     const result = await sql`
       INSERT INTO products (
+        user_id,
         name,
         slug,
         price,
@@ -90,6 +87,7 @@ export async function POST(request: NextRequest) {
         image_url,
         target_audience
       ) VALUES (
+        ${userId},
         ${name},
         ${slug || null},
         ${price ? parseFloat(price) : null},
@@ -119,6 +117,13 @@ export async function POST(request: NextRequest) {
     console.error("Error creating product:", error)
 
     if (error instanceof Error) {
+      if (error.message === "Unauthorized") {
+        return NextResponse.json(
+          { error: "Unauthorized", details: "Please log in to continue" },
+          { status: 401 }
+        )
+      }
+
       // Handle unique constraint violations
       if (error.message.includes("duplicate key") && error.message.includes("slug")) {
         return NextResponse.json(
@@ -142,14 +147,17 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    // Import postgres only when needed
-    const { neon } = await import("@neondatabase/serverless")
-    const sql = neon(getDatabaseUrl())
+    // REQUIRE AUTHENTICATION
+    const session = await requireAuth()
+    const userId = session.user.id
 
-    // Get all products
+    // GET DATABASE CONNECTION
+    const sql = getNeonClient()
+
+    // GET PRODUCTS - FILTERED BY USER_ID
     const products = await sql`
       SELECT * FROM products
-      WHERE is_active = true
+      WHERE is_active = true AND user_id = ${userId}
       ORDER BY created_at DESC
     `
 
@@ -158,6 +166,13 @@ export async function GET(request: NextRequest) {
     console.error("Error fetching products:", error)
 
     if (error instanceof Error) {
+      if (error.message === "Unauthorized") {
+        return NextResponse.json(
+          { error: "Unauthorized", details: "Please log in to continue" },
+          { status: 401 }
+        )
+      }
+
       return NextResponse.json(
         { error: error.message },
         { status: 500 }

@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
+import { requireAuth } from "@/lib/auth-session"
+import { getNeonClient } from "@/lib/db"
 
 export const dynamic = "force-dynamic"
-
-const getDatabaseUrl = () => {
-  const dbUrl = process.env.DATABASE_URL
-  if (!dbUrl) {
-    throw new Error("DATABASE_URL environment variable is not set")
-  }
-  return dbUrl
-}
 
 interface VideoRecord {
   id: string
@@ -35,16 +29,19 @@ interface ErrorResponse {
 
 export async function GET(request: NextRequest) {
   try {
-    // Import neon only when needed
-    const { neon } = await import("@neondatabase/serverless")
-    const sql = neon(getDatabaseUrl())
+    // 1. REQUIRE AUTHENTICATION
+    const session = await requireAuth()
+    const userId = session.user.id
 
-    // Get query parameters
+    // 2. GET DATABASE CONNECTION
+    const sql = getNeonClient()
+
+    // 3. GET QUERY PARAMETERS
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get("limit") || "50")
     const offset = parseInt(searchParams.get("offset") || "0")
 
-    // Fetch videos from database, ordered by most recent first
+    // 4. FETCH VIDEOS - FILTERED BY USER_ID
     const videos = await sql<VideoRecord[]>`
       SELECT
         id,
@@ -63,17 +60,17 @@ export async function GET(request: NextRequest) {
         created_at,
         updated_at
       FROM videos
-      WHERE deleted_at IS NULL
+      WHERE deleted_at IS NULL AND user_id = ${userId}
       ORDER BY created_at DESC
       LIMIT ${limit}
       OFFSET ${offset}
     `
 
-    // Get total count
+    // Get total count for this user
     const countResult = await sql`
       SELECT COUNT(*) as total
       FROM videos
-      WHERE deleted_at IS NULL
+      WHERE deleted_at IS NULL AND user_id = ${userId}
     `
 
     const total = parseInt(countResult[0].total as string)
@@ -89,6 +86,14 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error("Error fetching videos:", error)
+
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json<ErrorResponse>(
+        { error: "Unauthorized", details: "Please log in to continue" },
+        { status: 401 },
+      )
+    }
+
     const errorMessage = error instanceof Error ? error.message : "Unknown error occurred"
 
     return NextResponse.json<ErrorResponse>(

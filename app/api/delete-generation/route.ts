@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
+import { requireAuth } from "@/lib/auth-session"
+import { getNeonClient } from "@/lib/db"
 
 export const dynamic = "force-dynamic"
-
-const getDatabaseUrl = () => {
-  const dbUrl = process.env.DATABASE_URL
-  if (!dbUrl) {
-    throw new Error("DATABASE_URL environment variable is not set")
-  }
-  return dbUrl
-}
 
 interface ErrorResponse {
   error: string
@@ -17,6 +11,9 @@ interface ErrorResponse {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const session = await requireAuth()
+    const userId = session.user.id
+
     const searchParams = request.nextUrl.searchParams
     const generationId = searchParams.get("id") as string | null
 
@@ -30,22 +27,21 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    // Import neon only when needed
-    const { neon } = await import("@neondatabase/serverless")
-    const sql = neon(getDatabaseUrl())
+    const sql = getNeonClient()
 
-    // Soft delete - mark as deleted instead of removing
+    // Soft delete - mark as deleted instead of removing, but only if owned by user
     const result = await sql`
       UPDATE generations
       SET deleted_at = CURRENT_TIMESTAMP
       WHERE id = ${generationId}
+      AND user_id = ${userId}
       RETURNING id
     `
 
     if (result.length === 0) {
       return NextResponse.json<ErrorResponse>(
         {
-          error: "Generation not found",
+          error: "Generation not found or you don't have permission to delete it",
         },
         { status: 404 },
       )
@@ -56,6 +52,10 @@ export async function DELETE(request: NextRequest) {
       generationId,
     })
   } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
     console.error("Error deleting generation:", error)
     const errorMessage = error instanceof Error ? error.message : "Unknown error occurred"
 

@@ -43,7 +43,17 @@
       "Bash(python -m json.tool:*)",
       "Bash(find:*)",
       "Bash(cat:*)",
-      "WebFetch(domain:greenlinepremium.com.br)"
+      "WebFetch(domain:greenlinepremium.com.br)",
+      "WebFetch(domain:www.better-auth.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:blog.logrocket.com)",
+      "Bash(npx @better-auth/cli@latest generate:*)",
+      "Bash(node scripts/run-migration.js:*)",
+      "Bash(node scripts/check-auth-tables.js:*)",
+      "Bash(node scripts/fix-auth-tables.js:*)",
+      "Bash(node scripts/clean-orphan-user.js:*)",
+      "Bash(node scripts/add-token-field.js:*)",
+      "Bash(node scripts/add-user-id-columns.js:*)"
     ]
   }
 }

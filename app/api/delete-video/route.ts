@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
+import { requireAuth } from "@/lib/auth-session"
+import { getNeonClient } from "@/lib/db"
 
 export const dynamic = "force-dynamic"
-
-const getDatabaseUrl = () => {
-  const dbUrl = process.env.DATABASE_URL
-  if (!dbUrl) {
-    throw new Error("DATABASE_URL environment variable is not set")
-  }
-  return dbUrl
-}
 
 interface DeleteVideoRequest {
   videoId: string
@@ -21,6 +15,9 @@ interface ErrorResponse {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const session = await requireAuth()
+    const userId = session.user.id
+
     const body = (await request.json()) as DeleteVideoRequest
     const { videoId } = body
 
@@ -34,23 +31,22 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    // Import neon only when needed
-    const { neon } = await import("@neondatabase/serverless")
-    const sql = neon(getDatabaseUrl())
+    const sql = getNeonClient()
 
-    // Soft delete by setting deleted_at timestamp
+    // Soft delete by setting deleted_at timestamp, but only if owned by user
     const result = await sql`
       UPDATE videos
       SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
       WHERE id = ${videoId}
+      AND user_id = ${userId}
       RETURNING id
     `
 
     if (!result || result.length === 0) {
       return NextResponse.json<ErrorResponse>(
         {
-          error: "Video not found",
-          details: `No video found with id: ${videoId}`,
+          error: "Video not found or you don't have permission to delete it",
+          details: `No video found with id: ${videoId} or insufficient permissions`,
         },
         { status: 404 },
       )
@@ -61,6 +57,10 @@ export async function DELETE(request: NextRequest) {
       videoId: videoId,
     })
   } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
     console.error("Error deleting video:", error)
     const errorMessage = error instanceof Error ? error.message : "Unknown error occurred"
 

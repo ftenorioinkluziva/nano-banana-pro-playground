@@ -1,4 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { requireAuth } from "@/lib/auth-session"
+import { getNeonClient } from "@/lib/db"
 import { generateUGCScript, type ScriptOutput } from "@/lib/agents/script-generator"
 
 export const dynamic = "force-dynamic"
@@ -44,6 +46,10 @@ async function convertToDataUrl(source: File | string): Promise<string> {
 
 export async function POST(request: NextRequest) {
   try {
+    // Require authentication
+    const session = await requireAuth()
+    const userId = session.user.id
+
     // Parse FormData
     const formData = await request.formData()
     const productId = formData.get("product_id") as string
@@ -87,19 +93,22 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Fetch product from database
-    const { neon } = await import("@neondatabase/serverless")
-    const sql = neon(process.env.DATABASE_URL!)
+    // Fetch product from database - verify ownership
+    const sql = getNeonClient()
 
     const productResult = await sql`
       SELECT id, name, image_url
       FROM products
       WHERE id = ${parseInt(productId)}
+      AND user_id = ${userId}
       LIMIT 1
     `
 
     if (productResult.length === 0) {
-      return NextResponse.json<ErrorResponse>({ error: "Product not found" }, { status: 404 })
+      return NextResponse.json<ErrorResponse>(
+        { error: "Product not found or you don't have permission to use it" },
+        { status: 404 }
+      )
     }
 
     const product = productResult[0]
@@ -142,7 +151,8 @@ export async function POST(request: NextRequest) {
         tone,
         project_summary,
         script_json,
-        status
+        status,
+        user_id
       ) VALUES (
         ${scriptId},
         ${product.id},
@@ -153,7 +163,8 @@ export async function POST(request: NextRequest) {
         ${tone},
         ${script.project_summary},
         ${JSON.stringify(script)},
-        'complete'
+        'complete',
+        ${userId}
       )
     `
 
@@ -165,6 +176,10 @@ export async function POST(request: NextRequest) {
       script,
     })
   } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
     console.error("Error generating script:", error)
 
     const errorMessage = error instanceof Error ? error.message : "Unknown error occurred"
