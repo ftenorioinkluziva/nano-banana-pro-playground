@@ -16,7 +16,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
           script: |
-            cd /root/nano-banana
+            cd /root/nano-banana/nano-banana-pro-playground
             
             # Garante que o repo local está limpo para receber a atualização
             git reset --hard

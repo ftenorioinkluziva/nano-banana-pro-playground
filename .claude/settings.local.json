@@ -53,7 +53,8 @@
       "Bash(node scripts/fix-auth-tables.js:*)",
       "Bash(node scripts/clean-orphan-user.js:*)",
       "Bash(node scripts/add-token-field.js:*)",
-      "Bash(node scripts/add-user-id-columns.js:*)"
+      "Bash(node scripts/add-user-id-columns.js:*)",
+      "Bash(cd:*)"
     ]
   }
 }
