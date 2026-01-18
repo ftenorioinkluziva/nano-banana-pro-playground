@@ -19,7 +19,9 @@ export async function middleware(request: NextRequest) {
     pathname === route || pathname.startsWith(`${route}/`)
   )
 
-  const isAuthRoute = AUTH_ROUTES.some((route) => pathname.startsWith(route))
+  const isAuthRoute = AUTH_ROUTES.some((route) =>
+    pathname === route || pathname.startsWith(`${route}/`)
+  )
 
   // Allow public routes
   if (isPublicRoute) {
