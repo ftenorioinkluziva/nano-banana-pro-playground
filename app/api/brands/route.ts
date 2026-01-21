@@ -16,7 +16,7 @@ export async function GET() {
       SELECT id, name, tone, description, created_at
       FROM brands
       WHERE deleted_at IS NULL
-      AND user_id = ${userId}
+      AND (user_id = ${userId} OR user_id IS NULL)
       ORDER BY created_at DESC
     `
 
