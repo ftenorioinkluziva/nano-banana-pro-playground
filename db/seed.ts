@@ -127,6 +127,7 @@ const productsData: Record<string, Array<{
   usageInstructions: string
   benefits: string[]
   targetAudience: string
+  imageUrl: string
 }>> = {
   "Green Line Premium": [
     {
@@ -140,6 +141,7 @@ const productsData: Record<string, Array<{
       usageInstructions: "Tomar 2 cápsulas ao dia, preferencialmente antes do treino ou pela manhã.",
       benefits: ["Acelera o metabolismo", "Aumenta a queima de gordura", "Fornece energia para o treino", "Reduz o apetite"],
       targetAudience: "Adultos que buscam emagrecimento e definição muscular",
+      imageUrl: "https://images.unsplash.com/photo-1556228578-8c89e6adf883?w=400&h=400&fit=crop",
     },
     {
       name: "Colágeno Hidrolisado Premium",
@@ -152,6 +154,7 @@ const productsData: Record<string, Array<{
       usageInstructions: "Diluir 10g (1 colher de sopa) em 200ml de água ou suco. Tomar 1 vez ao dia.",
       benefits: ["Melhora a elasticidade da pele", "Fortalece cabelos e unhas", "Protege as articulações", "Ação antioxidante"],
       targetAudience: "Mulheres acima de 25 anos preocupadas com beleza e bem-estar",
+      imageUrl: "https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?w=400&h=400&fit=crop",
     },
     {
       name: "Whey Protein Concentrado",
@@ -164,6 +167,7 @@ const productsData: Record<string, Array<{
       usageInstructions: "Misturar 30g (1 scoop) em 200ml de água ou leite. Tomar após o treino.",
       benefits: ["Alto teor de proteína", "Rápida absorção", "Auxilia na recuperação muscular", "Baixo teor de gordura"],
       targetAudience: "Praticantes de musculação e exercícios físicos",
+      imageUrl: "https://images.unsplash.com/photo-1593095948071-474c5cc2989d?w=400&h=400&fit=crop",
     },
     {
       name: "Melatonina Sleep Plus",
@@ -176,6 +180,7 @@ const productsData: Record<string, Array<{
       usageInstructions: "Pingar 20 gotas embaixo da língua 30 minutos antes de dormir.",
       benefits: ["Induz o sono natural", "Melhora a qualidade do sono", "Reduz a ansiedade", "Não causa dependência"],
       targetAudience: "Adultos com dificuldades para dormir ou jet lag",
+      imageUrl: "https://images.unsplash.com/photo-1550572017-edd951aa8f72?w=400&h=400&fit=crop",
     },
     {
       name: "Multivitamínico Completo",
@@ -188,6 +193,7 @@ const productsData: Record<string, Array<{
       usageInstructions: "Tomar 1 cápsula ao dia, preferencialmente com uma refeição.",
       benefits: ["Fortalece a imunidade", "Aumenta a disposição", "Combate o estresse oxidativo", "Supre deficiências nutricionais"],
       targetAudience: "Adultos que buscam suplementação vitamínica diária",
+      imageUrl: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400&h=400&fit=crop",
     },
   ],
   "VitaPlus Naturals": [
@@ -202,6 +208,7 @@ const productsData: Record<string, Array<{
       usageInstructions: "Tomar 2 cápsulas ao dia com uma refeição.",
       benefits: ["Saúde do coração", "Função cerebral", "Anti-inflamatório natural", "100% vegano"],
       targetAudience: "Veganos e vegetarianos que buscam suplementação de ômega 3",
+      imageUrl: "https://images.unsplash.com/photo-1577401239170-897942555fb3?w=400&h=400&fit=crop",
     },
     {
       name: "Spirulina Orgânica",
@@ -214,6 +221,7 @@ const productsData: Record<string, Array<{
       usageInstructions: "Tomar 4 comprimidos ao dia, preferencialmente antes das refeições.",
       benefits: ["Alta concentração de proteínas", "Desintoxicação natural", "Rico em ferro", "Energia sustentável"],
       targetAudience: "Pessoas que buscam alimentação natural e detox",
+      imageUrl: "https://images.unsplash.com/photo-1622766815178-641bef2b4630?w=400&h=400&fit=crop",
     },
     {
       name: "Vitamina D3 + K2",
@@ -226,6 +234,7 @@ const productsData: Record<string, Array<{
       usageInstructions: "Pingar 2 gotas ao dia diretamente na boca ou em alimentos.",
       benefits: ["Fortalece os ossos", "Melhora a imunidade", "Direciona cálcio para os ossos", "Alta biodisponibilidade"],
       targetAudience: "Adultos e idosos preocupados com saúde óssea",
+      imageUrl: "https://images.unsplash.com/photo-1471864190281-a93a3070b6de?w=400&h=400&fit=crop",
     },
     {
       name: "Ashwagandha Adaptógeno",
@@ -238,6 +247,7 @@ const productsData: Record<string, Array<{
       usageInstructions: "Tomar 1 cápsula ao dia, preferencialmente à noite.",
       benefits: ["Reduz cortisol", "Combate a ansiedade", "Melhora o sono", "Aumenta a energia"],
       targetAudience: "Pessoas com estresse crônico ou ansiedade",
+      imageUrl: "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?w=400&h=400&fit=crop",
     },
     {
       name: "Probiótico 10 Bilhões",
@@ -250,6 +260,7 @@ const productsData: Record<string, Array<{
       usageInstructions: "Tomar 1 cápsula ao dia em jejum com um copo de água.",
       benefits: ["Equilibra a flora intestinal", "Fortalece a imunidade", "Melhora a digestão", "Reduz inchaço"],
       targetAudience: "Pessoas com problemas digestivos ou que buscam saúde intestinal",
+      imageUrl: "https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=400&h=400&fit=crop",
     },
   ],
 }
@@ -320,6 +331,7 @@ async function seed() {
           usageInstructions: product.usageInstructions,
           benefits: product.benefits,
           targetAudience: product.targetAudience,
+          imageUrl: product.imageUrl,
           isActive: true,
         })
         .onConflictDoUpdate({
@@ -335,6 +347,7 @@ async function seed() {
             usageInstructions: product.usageInstructions,
             benefits: product.benefits,
             targetAudience: product.targetAudience,
+            imageUrl: product.imageUrl,
             updatedAt: new Date(),
           },
         })

@@ -30,6 +30,7 @@ export function ScriptForm({ onScriptGenerated, isGenerating, setIsGenerating, d
   const [painPoint, setPainPoint] = useState("")
   const [context, setContext] = useState("")
   const [tone, setTone] = useState<"natural_friendly" | "energetic" | "serious">("natural_friendly")
+  const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Fetch products
@@ -48,30 +49,55 @@ export function ScriptForm({ onScriptGenerated, isGenerating, setIsGenerating, d
     fetchProducts()
   }, [])
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    // Validate file size
+  const processFile = (file: File) => {
     if (file.size > MAX_FILE_SIZE) {
       toast.error(`Imagem muito grande. Máximo ${MAX_FILE_SIZE / 1024 / 1024}MB`)
       return
     }
 
-    // Validate file type
-    if (!file.type.startsWith("image/")) {
+    if (!file.type.startsWith("image/") && !file.name.toLowerCase().endsWith(".heic") && !file.name.toLowerCase().endsWith(".heif")) {
       toast.error("Arquivo deve ser uma imagem")
       return
     }
 
     setPersonaImage(file)
 
-    // Create preview
     const reader = new FileReader()
     reader.onloadend = () => {
       setPersonaPreview(reader.result as string)
     }
+    reader.onerror = () => {
+      toast.error("Erro ao ler o arquivo")
+    }
     reader.readAsDataURL(file)
+  }
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) processFile(file)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!disabled) setIsDragging(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+
+    if (disabled) return
+
+    const file = e.dataTransfer.files?.[0]
+    if (file) processFile(file)
   }
 
   const handleClearImage = () => {
@@ -164,10 +190,17 @@ export function ScriptForm({ onScriptGenerated, isGenerating, setIsGenerating, d
           {!personaPreview ? (
             <div
               onClick={() => !disabled && fileInputRef.current?.click()}
-              className="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center cursor-pointer hover:border-gray-500 transition-colors"
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                isDragging
+                  ? "border-white bg-white/10"
+                  : "border-gray-600 hover:border-gray-500"
+              } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               <svg
-                className="mx-auto h-12 w-12 text-gray-400"
+                className={`mx-auto h-12 w-12 ${isDragging ? "text-white" : "text-gray-400"}`}
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -179,7 +212,9 @@ export function ScriptForm({ onScriptGenerated, isGenerating, setIsGenerating, d
                   d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
                 />
               </svg>
-              <p className="mt-2 text-sm text-gray-400">Clique para fazer upload ou arraste a imagem</p>
+              <p className={`mt-2 text-sm ${isDragging ? "text-white" : "text-gray-400"}`}>
+                {isDragging ? "Solte a imagem aqui" : "Clique para fazer upload ou arraste a imagem"}
+              </p>
               <p className="text-xs text-gray-500 mt-1">JPG, PNG, HEIC até 10MB</p>
             </div>
           ) : (

@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
       SELECT id, name, image_url
       FROM products
       WHERE id = ${parseInt(productId)}
-      AND user_id = ${userId}
+      AND (user_id = ${userId} OR user_id IS NULL)
       LIMIT 1
     `
 
