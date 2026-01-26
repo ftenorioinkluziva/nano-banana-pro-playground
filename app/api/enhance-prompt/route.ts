@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createGoogleGenerativeAI } from "@ai-sdk/google"
 import { generateText } from "ai"
+import { requireAuth } from "@/lib/auth-session"
+import { checkCredits, deductCredits } from "@/lib/credits"
+import { USAGE_COSTS, getPromptEnhancementCost } from "@/lib/usage-costs"
 
 const google = createGoogleGenerativeAI({
   apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY || "",
@@ -8,6 +11,9 @@ const google = createGoogleGenerativeAI({
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await requireAuth()
+    const userId = session.user.id
+
     const body = await request.json()
     const { prompt } = body
 
@@ -23,6 +29,13 @@ export async function POST(request: NextRequest) {
         { error: "Prompt is too long (maximum 5000 characters)" },
         { status: 400 }
       )
+    }
+
+    // Check credits
+    const cost = await getPromptEnhancementCost()
+    const hasCredits = await checkCredits(userId, cost)
+    if (!hasCredits) {
+      return NextResponse.json({ error: "Insufficient credits" }, { status: 402 })
     }
 
     const systemPrompt = `You are an expert AI image generation prompt engineer. Your task is to enhance and optimize prompts for Google's Gemini image generation model based on official best practices.
@@ -74,11 +87,14 @@ ${prompt}
 Enhanced prompt:`
 
     const { text } = await generateText({
-      model: google("gemini-2.5-flash"),
+      model: google("gemini-2.5-flash" as any),
       prompt: systemPrompt,
       temperature: 0.7,
       maxTokens: 500,
     })
+
+    // Deduct credits
+    await deductCredits(userId, cost, "Prompt Enhancement")
 
     return NextResponse.json({
       enhanced: text.trim(),

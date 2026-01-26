@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone', // For Docker deployment
+  skipTrailingSlashRedirect: true, // Prevent 307 redirects on webhooks
   typescript: {
     ignoreBuildErrors: true,
   },

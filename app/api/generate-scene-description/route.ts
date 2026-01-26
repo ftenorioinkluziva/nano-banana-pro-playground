@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { generateText } from "ai";
+import { requireAuth } from "@/lib/auth-session";
+import { checkCredits, deductCredits } from "@/lib/credits";
 
 const google = createGoogleGenerativeAI({
   apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY || "",
@@ -8,6 +10,9 @@ const google = createGoogleGenerativeAI({
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await requireAuth();
+    const userId = session.user.id;
+
     const body = await request.json();
     const { productName, description, targetAudience, category, ingredients, benefits } = body;
 
@@ -16,6 +21,13 @@ export async function POST(request: NextRequest) {
         { error: "Product name is required" },
         { status: 400 }
       );
+    }
+
+    // Check credits (1 credit)
+    const cost = 1;
+    const hasCredits = await checkCredits(userId, cost);
+    if (!hasCredits) {
+      return NextResponse.json({ error: "Insufficient credits" }, { status: 402 });
     }
 
     // Build context from product information
@@ -54,11 +66,14 @@ Generate ONLY the scene description, without any prefixes, explanations, or extr
     // Context: 1M tokens | Output: 65K tokens
     // Ideal for high-volume, fast text generation tasks
     const { text } = await generateText({
-      model: google("gemini-2.5-flash"),
+      model: google("gemini-2.5-flash" as any),
       prompt,
       temperature: 0.8,
       maxTokens: 200,
     });
+
+    // Deduct credits
+    await deductCredits(userId, cost, "Scene Description Generation");
 
     return NextResponse.json({
       success: true,

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
 import type { ScriptOutput } from "@/lib/agents/script-generator"
+import { useLanguage } from "@/components/language-provider"
 
 interface Product {
   id: number
@@ -23,6 +24,7 @@ interface ScriptFormProps {
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 
 export function ScriptForm({ onScriptGenerated, isGenerating, setIsGenerating, disabled }: ScriptFormProps) {
+  const { t } = useLanguage()
   const [products, setProducts] = useState<Product[]>([])
   const [selectedProductId, setSelectedProductId] = useState<string>("")
   const [personaImage, setPersonaImage] = useState<File | null>(null)
@@ -43,20 +45,20 @@ export function ScriptForm({ onScriptGenerated, isGenerating, setIsGenerating, d
         setProducts(data.products || [])
       } catch (error) {
         console.error("Error fetching products:", error)
-        toast.error("Erro ao carregar produtos")
+        toast.error(t.errorLoadingProducts)
       }
     }
     fetchProducts()
-  }, [])
+  }, [t.errorLoadingProducts])
 
   const processFile = (file: File) => {
     if (file.size > MAX_FILE_SIZE) {
-      toast.error(`Imagem muito grande. Máximo ${MAX_FILE_SIZE / 1024 / 1024}MB`)
+      toast.error(`${t.imageTooLarge} ${MAX_FILE_SIZE / 1024 / 1024}MB`)
       return
     }
 
     if (!file.type.startsWith("image/") && !file.name.toLowerCase().endsWith(".heic") && !file.name.toLowerCase().endsWith(".heif")) {
-      toast.error("Arquivo deve ser uma imagem")
+      toast.error(t.fileMustBeImage)
       return
     }
 
@@ -67,7 +69,7 @@ export function ScriptForm({ onScriptGenerated, isGenerating, setIsGenerating, d
       setPersonaPreview(reader.result as string)
     }
     reader.onerror = () => {
-      toast.error("Erro ao ler o arquivo")
+      toast.error(t.errorReadingFile)
     }
     reader.readAsDataURL(file)
   }
@@ -142,7 +144,7 @@ export function ScriptForm({ onScriptGenerated, isGenerating, setIsGenerating, d
       onScriptGenerated(data.script, data.scriptId)
     } catch (error) {
       console.error("Error generating script:", error)
-      toast.error(error instanceof Error ? error.message : "Erro ao gerar roteiro")
+      toast.error(error instanceof Error ? error.message : t.errorGeneratingScript)
     } finally {
       setIsGenerating(false)
     }
@@ -152,18 +154,18 @@ export function ScriptForm({ onScriptGenerated, isGenerating, setIsGenerating, d
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="bg-white/5 border border-gray-700 rounded-lg p-6 space-y-6">
         <div className="space-y-2">
-          <h2 className="text-xl font-semibold">Configuração do Roteiro</h2>
-          <p className="text-sm text-gray-400">Preencha os campos abaixo para gerar seu roteiro estruturado</p>
+          <h2 className="text-xl font-semibold">{t.scriptConfiguration}</h2>
+          <p className="text-sm text-gray-400">{t.fillFormForScript}</p>
         </div>
 
         {/* Product Selector */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-300 block">
-            Produto <span className="text-red-500">*</span>
+            {t.products} <span className="text-red-500">*</span>
           </label>
           <Select value={selectedProductId} onValueChange={setSelectedProductId} disabled={disabled}>
             <SelectTrigger className="w-full h-12 bg-black/50 border-gray-600 text-white">
-              <SelectValue placeholder="Selecione um produto" />
+              <SelectValue placeholder={t.selectBrand} />
             </SelectTrigger>
             <SelectContent className="bg-black border-gray-600">
               {products.map((product) => (
@@ -183,9 +185,9 @@ export function ScriptForm({ onScriptGenerated, isGenerating, setIsGenerating, d
         {/* Persona Image Upload */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-300 block">
-            Foto da Persona <span className="text-red-500">*</span>
+            {t.personaPhoto} <span className="text-red-500">*</span>
           </label>
-          <p className="text-xs text-gray-400">Upload da foto da pessoa que será animada no vídeo</p>
+          <p className="text-xs text-gray-400">{t.personaPhotoDesc}</p>
 
           {!personaPreview ? (
             <div
@@ -193,11 +195,10 @@ export function ScriptForm({ onScriptGenerated, isGenerating, setIsGenerating, d
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-                isDragging
+              className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${isDragging
                   ? "border-white bg-white/10"
                   : "border-gray-600 hover:border-gray-500"
-              } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+                } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               <svg
                 className={`mx-auto h-12 w-12 ${isDragging ? "text-white" : "text-gray-400"}`}
@@ -213,9 +214,9 @@ export function ScriptForm({ onScriptGenerated, isGenerating, setIsGenerating, d
                 />
               </svg>
               <p className={`mt-2 text-sm ${isDragging ? "text-white" : "text-gray-400"}`}>
-                {isDragging ? "Solte a imagem aqui" : "Clique para fazer upload ou arraste a imagem"}
+                {isDragging ? t.dropImageHere : t.clickToUpload}
               </p>
-              <p className="text-xs text-gray-500 mt-1">JPG, PNG, HEIC até 10MB</p>
+              <p className="text-xs text-gray-500 mt-1">{t.imageRequirements}</p>
             </div>
           ) : (
             <div className="relative">
@@ -246,9 +247,9 @@ export function ScriptForm({ onScriptGenerated, isGenerating, setIsGenerating, d
         {/* Pain Point */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-300 block">
-            Dor / Benefício <span className="text-red-500">*</span>
+            {t.painPointBenefit} <span className="text-red-500">*</span>
           </label>
-          <p className="text-xs text-gray-400">Qual é a principal dor ou benefício que o produto resolve?</p>
+          <p className="text-xs text-gray-400">{t.painPointDesc}</p>
           <textarea
             value={painPoint}
             onChange={(e) => setPainPoint(e.target.value)}
@@ -258,20 +259,20 @@ export function ScriptForm({ onScriptGenerated, isGenerating, setIsGenerating, d
             className="w-full min-h-[100px] p-3 bg-black/50 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-white resize-none"
           />
           <div className="flex justify-between text-xs text-gray-500">
-            <span>Descreva o problema que o produto resolve</span>
+            <span>{t.describeProblem}</span>
             <span>{painPoint.length}/500</span>
           </div>
         </div>
 
         {/* Context */}
         <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-300 block">Contexto (Opcional)</label>
-          <p className="text-xs text-gray-400">Onde acontece a cena? Se não preencher, a IA irá inferir da foto</p>
+          <label className="text-sm font-medium text-gray-300 block">{t.contextOptional}</label>
+          <p className="text-xs text-gray-400">{t.contextDesc}</p>
           <input
             type="text"
             value={context}
             onChange={(e) => setContext(e.target.value)}
-            placeholder="Ex: Cozinha, manhã de sol"
+            placeholder={t.contextPlaceholder}
             maxLength={200}
             disabled={disabled}
             className="w-full h-12 px-3 bg-black/50 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-white"
@@ -281,7 +282,7 @@ export function ScriptForm({ onScriptGenerated, isGenerating, setIsGenerating, d
         {/* Tone */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-300 block">
-            Tom de Voz <span className="text-red-500">*</span>
+            {t.toneOfVoice} <span className="text-red-500">*</span>
           </label>
           <Select value={tone} onValueChange={(value: any) => setTone(value)} disabled={disabled}>
             <SelectTrigger className="w-full h-12 bg-black/50 border-gray-600 text-white">
@@ -289,13 +290,13 @@ export function ScriptForm({ onScriptGenerated, isGenerating, setIsGenerating, d
             </SelectTrigger>
             <SelectContent className="bg-black border-gray-600">
               <SelectItem value="natural_friendly" className="text-white">
-                Natural / Amigo
+                {t.naturalFriendly}
               </SelectItem>
               <SelectItem value="energetic" className="text-white">
-                Enérgico
+                {t.energetic}
               </SelectItem>
               <SelectItem value="serious" className="text-white">
-                Sério
+                {t.serious}
               </SelectItem>
             </SelectContent>
           </Select>
@@ -305,15 +306,15 @@ export function ScriptForm({ onScriptGenerated, isGenerating, setIsGenerating, d
         <Button
           type="submit"
           disabled={!canGenerate}
-          className="w-full h-12 text-base font-semibold bg-white text-black hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full h-12 text-base font-semibold !bg-white !text-black hover:!bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isGenerating ? (
             <>
               <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-black mr-2"></div>
-              Gerando Roteiro...
+              {t.generatingScript}
             </>
           ) : (
-            "✨ Gerar Roteiro"
+            `✨ ${t.createScript}`
           )}
         </Button>
       </div>

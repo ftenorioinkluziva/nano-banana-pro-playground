@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Loader2, Sparkles } from "lucide-react";
+import { useLanguage } from "@/components/language-provider";
 
 interface Product {
   id: number;
@@ -45,6 +46,7 @@ export default function GenerateVideoDialog({
   open,
   onOpenChange,
 }: GenerateVideoDialogProps) {
+  const { t } = useLanguage()
   const [loading, setLoading] = useState(false);
   const [model, setModel] = useState<"veo3" | "veo3_fast">("veo3_fast");
   const [videoSetting, setVideoSetting] = useState(
@@ -112,21 +114,20 @@ export default function GenerateVideoDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[550px]">
+      <DialogContent className="sm:max-w-[550px] bg-black border-gray-800 text-white">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 text-white">
             <Sparkles className="h-5 w-5" />
-            Generate UGC Video
+            {t.generateVideo}
           </DialogTitle>
-          <DialogDescription>
-            Configure AI parameters to generate a user-generated content video for{" "}
-            <strong>{product.name}</strong>
+          <DialogDescription className="text-gray-400">
+            {t.chooseProductForUGC}: <strong>{product.name}</strong>
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           {/* Product Preview */}
-          <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+          <div className="flex items-center gap-3 p-3 bg-gray-900/50 border border-gray-800 rounded-lg">
             {product.image_url && (
               <img
                 src={product.image_url}
@@ -139,22 +140,17 @@ export default function GenerateVideoDialog({
               <p className="text-sm text-muted-foreground line-clamp-2">
                 {product.description}
               </p>
-              {product.target_audience && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Target: {product.target_audience}
-                </p>
-              )}
             </div>
           </div>
 
           {/* Capability Selection */}
           <div className="space-y-2">
-            <Label htmlFor="capability">Video Style (Capability)</Label>
+            <Label htmlFor="capability" className="text-white">{t.style}</Label>
             <Select value={selectedCapabilityId} onValueChange={setSelectedCapabilityId}>
-              <SelectTrigger id="capability">
-                <SelectValue placeholder="Select a video style" />
+              <SelectTrigger id="capability" className="bg-black border-gray-800">
+                <SelectValue placeholder={t.styles} />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-black border-gray-800 text-white">
                 {capabilities.map((cap) => (
                   <SelectItem key={cap.id} value={cap.id}>
                     {cap.label}
@@ -169,33 +165,30 @@ export default function GenerateVideoDialog({
 
           {/* AI Model Selection */}
           <div className="space-y-2">
-            <Label htmlFor="model">AI Model</Label>
+            <Label htmlFor="model" className="text-white">AI Model</Label>
             <Select value={model} onValueChange={(value: "veo3" | "veo3_fast") => setModel(value)}>
-              <SelectTrigger id="model">
+              <SelectTrigger id="model" className="bg-black border-gray-800">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="veo3_fast">Veo 3.1 Fast (Recommended)</SelectItem>
+              <SelectContent className="bg-black border-gray-800 text-white">
+                <SelectItem value="veo3_fast">Veo 3.1 Fast ({t.beDescriptive.split('.')[0]})</SelectItem>
                 <SelectItem value="veo3">Veo 3.1 Quality</SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground">
-              veo3_fast: Faster generation | veo3: Higher quality (slower)
-            </p>
           </div>
 
           {/* Video Setting */}
           <div className="space-y-2">
-            <Label htmlFor="setting">What happens in the video?</Label>
+            <Label htmlFor="setting" className="text-white">What happens in the video?</Label>
             <Textarea
               id="setting"
               value={videoSetting}
               onChange={(e) => setVideoSetting(e.target.value)}
               placeholder="Ex: A woman in her 30s holding the product and smiling at the camera"
-              className="min-h-[120px]"
+              className="min-h-[120px] bg-black border-gray-800 text-white"
             />
             <p className="text-xs text-muted-foreground">
-              Describe what you want to see in the video. The Director Agent will automatically enhance this with technical details based on the selected capability.
+              {t.beDescriptive}
             </p>
           </div>
         </div>
@@ -205,19 +198,24 @@ export default function GenerateVideoDialog({
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={loading}
+            className="bg-transparent border-gray-600 text-white hover:bg-gray-700"
           >
-            Cancel
+            {t.cancel}
           </Button>
-          <Button onClick={handleGenerate} disabled={loading}>
+          <Button
+            onClick={handleGenerate}
+            disabled={loading}
+            className="!bg-white !text-black hover:!bg-gray-200"
+          >
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Generating...
+                {t.generating}
               </>
             ) : (
               <>
                 <Sparkles className="mr-2 h-4 w-4" />
-                Generate Video
+                {t.generateVideo}
               </>
             )}
           </Button>

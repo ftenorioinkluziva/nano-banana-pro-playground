@@ -20,6 +20,7 @@ interface GenerationHistoryProps {
   isLoadingMore?: boolean
   className?: string
   compact?: boolean // Added compact prop
+  t: Record<string, string>
 }
 
 export function GenerationHistory({
@@ -34,6 +35,7 @@ export function GenerationHistory({
   isLoadingMore = false,
   className,
   compact = false, // Default to false
+  t,
 }: GenerationHistoryProps) {
   const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set())
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -55,7 +57,7 @@ export function GenerationHistory({
 
   return (
     <div className={cn("flex flex-col w-full", className)}>
-      {!compact && <h4 className="text-xs md:text-sm font-medium text-gray-400 mb-1">History</h4>}
+      {!compact && <h4 className="text-xs md:text-sm font-medium text-gray-400 mb-1">{t.history}</h4>}
       <div
         className={cn(
           "w-full flex gap-1 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent h-20 md:h-28 items-end",
@@ -68,7 +70,7 @@ export function GenerationHistory({
           </div>
         ) : generations.length === 0 ? (
           <div className="flex items-center justify-center w-full h-20 md:h-28 text-gray-500 text-xs md:text-sm">
-            No generations yet
+            {t.noGenerations}
           </div>
         ) : (
           <>
@@ -77,7 +79,7 @@ export function GenerationHistory({
                 key={gen.id}
                 onClick={() => onSelect(gen.id)}
                 className={cn(
-                  "relative flex-shrink-0 w-18 h-18 md:w-24 md:h-24 overflow-hidden transition-all cursor-pointer group",
+                  "relative flex-shrink-0 w-[4.5rem] h-[4.5rem] md:w-24 md:h-24 overflow-hidden transition-all cursor-pointer group",
                   selectedId === gen.id
                     ? "border-2 border-white opacity-100"
                     : "border border-gray-600 hover:border-gray-500 opacity-60 hover:opacity-100",
@@ -105,9 +107,9 @@ export function GenerationHistory({
                         onCancel(gen.id)
                       }}
                       className="mt-2 text-[10px] px-2 py-0.5 bg-white/10 hover:bg-white text-white hover:text-black transition-all"
-                      aria-label="Cancel generation"
+                      aria-label={t.cancelGeneration}
                     >
-                      Cancel
+                      {t.cancel}
                     </button>
                   </div>
                 ) : gen.status === "error" ? (
@@ -121,13 +123,13 @@ export function GenerationHistory({
                     >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
-                    <span className="sr-only">Generation failed</span>
+                    <span className="sr-only">{t.generationFailed}</span>
                     {onDelete && (
                       <button
                         onClick={(e) => handleDelete(e, gen.id)}
                         disabled={deletingId === gen.id}
                         className="absolute top-1 right-1 p-1 bg-black/70 hover:bg-white text-white hover:text-black opacity-100 transition-all disabled:opacity-50 z-10"
-                        aria-label="Delete generation"
+                        aria-label={t.deleteGeneration}
                       >
                         {deletingId === gen.id ? (
                           <Loader2 className="w-3 h-3 animate-spin" />
@@ -152,7 +154,7 @@ export function GenerationHistory({
                         onClick={(e) => handleDelete(e, gen.id)}
                         disabled={deletingId === gen.id}
                         className="absolute top-1 right-1 p-1 bg-black/70 hover:bg-white text-white hover:text-black opacity-0 group-hover:opacity-100 transition-all disabled:opacity-50 z-10"
-                        aria-label="Delete generation"
+                        aria-label={t.deleteGeneration}
                       >
                         {deletingId === gen.id ? (
                           <Loader2 className="w-3 h-3 animate-spin" />
@@ -192,16 +194,16 @@ export function GenerationHistory({
               <button
                 onClick={onLoadMore}
                 disabled={isLoadingMore}
-                className="flex-shrink-0 w-18 h-18 md:w-24 md:h-24 border border-gray-600 hover:border-white bg-black/30 hover:bg-black/50 transition-all flex items-center justify-center text-xs text-gray-300 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                aria-label="Load more generations"
+                className="flex-shrink-0 w-[4.5rem] h-[4.5rem] md:w-24 md:h-24 border border-gray-600 hover:border-white bg-black/30 hover:bg-black/50 transition-all flex items-center justify-center text-xs text-gray-300 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label={t.loadMoreGenerations}
               >
                 {isLoadingMore ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
                 ) : (
-                  <span className="font-medium">
-                    Load
-                    <br />
-                    More
+                  <span className="font-medium text-center">
+                    {t.loadMore.split(' ').map((word, i) => (
+                      <span key={i}>{word}{i === 0 && <br />}</span>
+                    ))}
                   </span>
                 )}
               </button>

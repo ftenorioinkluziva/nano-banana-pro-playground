@@ -6,6 +6,8 @@ import { ProgressBar } from "./progress-bar"
 import { useMobile } from "@/hooks/use-mobile"
 import type { Generation } from "./hooks/use-image-generation"
 import { useEffect } from "react"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Copy, Download, RefreshCw, Maximize2, Trash2, ExternalLink, ArrowLeft } from "lucide-react"
 
 interface OutputSectionProps {
   selectedGeneration: Generation | undefined
@@ -23,6 +25,7 @@ interface OutputSectionProps {
   onCopy: () => void
   onDownload: () => void
   onOpenInNewTab: () => void
+  t: Record<string, string>
 }
 
 export function OutputSection({
@@ -41,6 +44,7 @@ export function OutputSection({
   onCopy,
   onDownload,
   onOpenInNewTab,
+  t,
 }: OutputSectionProps) {
   const isMobile = useMobile()
 
@@ -82,53 +86,63 @@ export function OutputSection({
       : null
 
   const renderButtons = (className?: string) => (
-    <div className={className}>
-      <Button
-        onClick={onLoadAsInput}
-        disabled={!generatedImage}
-        variant="outline"
-        size="sm"
-        className="text-xs h-7 px-2 md:px-3 bg-transparent border-gray-600 text-white hover:bg-gray-700 flex items-center gap-1 lg:bg-black/80 lg:backdrop-blur-sm disabled:opacity-50 disabled:cursor-not-allowed"
-        title="Use as Input"
-      >
-        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-        </svg>
-        <span className="hidden sm:inline">Use as Input</span>
-      </Button>
-      <Button
-        onClick={onCopy}
-        disabled={!generatedImage}
-        variant="outline"
-        size="sm"
-        className="text-xs h-7 px-2 md:px-3 bg-transparent border-gray-600 text-white hover:bg-gray-700 flex items-center gap-1 lg:bg-black/80 lg:backdrop-blur-sm disabled:opacity-50 disabled:cursor-not-allowed"
-        title={isMobile ? "Copy to clipboard" : "Copy to clipboard"}
-      >
-        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" strokeWidth="2" />
-          <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" strokeWidth="2" />
-        </svg>
-        <span className="hidden sm:inline">{isMobile ? "Copy" : "Copy"}</span>
-      </Button>
-      <Button
-        onClick={onDownload}
-        disabled={!generatedImage}
-        variant="outline"
-        size="sm"
-        className="text-xs h-7 px-2 md:px-3 bg-transparent border-gray-600 text-white hover:bg-gray-700 flex items-center gap-1 lg:bg-black/80 lg:backdrop-blur-sm disabled:opacity-50 disabled:cursor-not-allowed"
-        title="Download image"
-      >
-        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-          />
-        </svg>
-        <span className="hidden sm:inline">Download</span>
-      </Button>
-    </div>
+    <div className={cn("flex flex-wrap gap-2", className)}>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              onClick={onLoadAsInput}
+              disabled={!generatedImage}
+              variant="outline"
+              size="sm"
+              className="text-xs h-8 px-3 bg-zinc-900/50 border-zinc-700 text-white hover:bg-zinc-800 disabled:opacity-50 flex items-center gap-2 backdrop-blur-sm transition-all"
+            >
+              <ArrowLeft className="size-3" />
+              <span className="hidden sm:inline">{t.useAsInput}</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent className="bg-zinc-950 border-zinc-800 text-white text-xs">
+            {t.useAsInput}
+          </TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              onClick={onCopy}
+              disabled={!generatedImage}
+              variant="outline"
+              size="sm"
+              className="text-xs h-8 px-3 bg-zinc-900/50 border-zinc-700 text-white hover:bg-zinc-800 disabled:opacity-50 flex items-center gap-2 backdrop-blur-sm transition-all"
+            >
+              <Copy className="size-3" />
+              <span className="hidden sm:inline">{t.copy}</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent className="bg-zinc-950 border-zinc-800 text-white text-xs">
+            {t.copy}
+          </TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              onClick={onDownload}
+              disabled={!generatedImage}
+              variant="outline"
+              size="sm"
+              className="text-xs h-8 px-3 bg-zinc-900/50 border-zinc-700 text-white hover:bg-zinc-800 disabled:opacity-50 flex items-center gap-2 backdrop-blur-sm transition-all"
+            >
+              <Download className="size-3" />
+              <span className="hidden sm:inline">{t.download}</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent className="bg-zinc-950 border-zinc-800 text-white text-xs">
+            {t.download}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    </div >
   )
 
   return (
@@ -143,7 +157,7 @@ export function OutputSection({
           </div>
         ) : isConvertingHeic ? (
           <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-            <ProgressBar progress={heicProgress} onCancel={() => {}} isConverting />
+            <ProgressBar progress={heicProgress} onCancel={() => { }} isConverting />
           </div>
         ) : generatedImage ? (
           <div className="absolute inset-0 flex flex-col select-none">
@@ -176,7 +190,7 @@ export function OutputSection({
                   <polyline points="21,15 16,10 5,21" />
                 </svg>
               </div>
-              <p className="text-xs text-gray-400 font-medium py-1 md:py-2">Ready to generate</p>
+              <p className="text-xs text-gray-400 font-medium py-1 md:py-2">{t.readyToGenerate}</p>
             </div>
           </div>
         )}

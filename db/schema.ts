@@ -66,6 +66,14 @@ export const scriptStatusEnum = pgEnum("script_status", [
   "error",
 ])
 
+export const transactionTypeEnum = pgEnum("transaction_type", [
+  "purchase",
+  "topup",
+  "usage",
+  "bonus",
+  "refund",
+])
+
 // ============================================================
 // AUTH TABLES (Better Auth)
 // ============================================================
@@ -77,6 +85,8 @@ export const user = pgTable("user", {
   emailVerified: boolean("emailVerified").notNull().default(false),
   image: text("image"),
   role: userRoleEnum("role").notNull().default("creator"),
+  credits: integer("credits").notNull().default(10),
+  stripeCustomerId: text("stripe_customer_id").unique(),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
   updatedAt: timestamp("updatedAt").notNull().defaultNow(),
 })
@@ -117,6 +127,13 @@ export const verification = pgTable("verification", {
   expiresAt: timestamp("expiresAt").notNull(),
 })
 
+export const systemSettings = pgTable("system_settings", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").notNull(),
+  description: text("description"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+})
+
 // ============================================================
 // BUSINESS TABLES
 // ============================================================
@@ -136,6 +153,7 @@ export const generations = pgTable(
     aspectRatio: text("aspect_ratio").default("1:1"),
     model: text("model").default("nano-banana-pro"),
     description: text("description"),
+    cost: integer("cost"),
     errorMessage: text("error_message"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
@@ -316,6 +334,26 @@ export const sceneVideos = pgTable(
   ]
 )
 
+// Transactions (credit history)
+export const transactions = pgTable(
+  "transactions",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    amount: integer("amount").notNull(), // Positive for add, negative for spend
+    type: transactionTypeEnum("type").notNull(),
+    description: text("description").notNull(),
+    stripePaymentId: text("stripe_payment_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => [
+    index("idx_transactions_user_id").on(table.userId),
+    index("idx_transactions_created_at").on(table.createdAt),
+  ]
+)
+
 // ============================================================
 // RELATIONS
 // ============================================================
@@ -328,6 +366,7 @@ export const userRelations = relations(user, ({ many }) => ({
   brands: many(brands),
   products: many(products),
   scripts: many(scripts),
+  transactions: many(transactions),
 }))
 
 export const sessionRelations = relations(session, ({ one }) => ({
@@ -386,6 +425,10 @@ export const sceneVideosRelations = relations(sceneVideos, ({ one }) => ({
   }),
 }))
 
+export const transactionsRelations = relations(transactions, ({ one }) => ({
+  user: one(user, { fields: [transactions.userId], references: [user.id] }),
+}))
+
 // ============================================================
 // TYPE EXPORTS
 // ============================================================
@@ -395,6 +438,8 @@ export type NewUser = typeof user.$inferInsert
 export type Session = typeof session.$inferSelect
 export type Account = typeof account.$inferSelect
 export type Verification = typeof verification.$inferSelect
+export type SystemSettings = typeof systemSettings.$inferSelect
+export type NewSystemSettings = typeof systemSettings.$inferInsert
 
 export type Generation = typeof generations.$inferSelect
 export type NewGeneration = typeof generations.$inferInsert
@@ -409,3 +454,5 @@ export type Script = typeof scripts.$inferSelect
 export type NewScript = typeof scripts.$inferInsert
 export type SceneVideo = typeof sceneVideos.$inferSelect
 export type NewSceneVideo = typeof sceneVideos.$inferInsert
+export type Transaction = typeof transactions.$inferSelect
+export type NewTransaction = typeof transactions.$inferInsert

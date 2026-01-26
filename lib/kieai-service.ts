@@ -312,14 +312,32 @@ export class KieAIService {
   async generateWithWan26(params: {
     model: string // "wan/2-6-text-to-video" | "wan/2-6-image-to-video" | "wan/2-6-video-to-video"
     prompt: string
+    negative_prompt?: string
+    aspect_ratio?: string
     duration?: string // "5", "10", "15" (text/image-to-video) or "5", "10" (video-to-video)
     resolution?: string // "720p" | "1080p"
     image_urls?: string[] // For image-to-video
     video_urls?: string[] // For video-to-video
     callBackUrl?: string
+    seed?: number
+    use_audio?: boolean // Default true
+    storyboard?: { prompt: string; duration?: string; img_url?: string }[]
   }): Promise<string> {
     const input: Record<string, any> = {
       prompt: params.prompt,
+      use_audio: params.use_audio !== false // Default to true if not specified
+    }
+
+    if (params.negative_prompt) {
+      input.negative_prompt = params.negative_prompt
+    }
+
+    if (params.aspect_ratio) {
+      input.aspect_ratio = params.aspect_ratio
+    }
+
+    if (params.seed) {
+      input.seed = params.seed
     }
 
     // Add image_urls or video_urls based on model
@@ -330,23 +348,68 @@ export class KieAIService {
       input.video_urls = params.video_urls
     }
 
+    // Add storyboard if present
+    if (params.storyboard) {
+      input.storyboard = params.storyboard
+    }
+
     const requestBody: Record<string, any> = {
       model: params.model,
       input,
     }
 
-    // Add optional parameters
-    if (params.duration) {
-      requestBody.duration = params.duration
+    // Customize parameters based on model family
+    if (params.model.includes("sora")) {
+      // Sora uses n_frames and size
+      if (params.duration) {
+        // duration "10" -> n_frames 10
+        // duration "10s" -> n_frames 10
+        const frames = parseInt(params.duration.replace(/\D/g, ''))
+        requestBody.n_frames = isNaN(frames) ? 10 : frames
+      }
+
+      if (params.model.includes("storyboard")) {
+        // Storyboard specific logic if needed
+        // Ensure n_frames covers the whole storyboard or is per scene?
+        // Usually API handles total duration based on scenes or explicit n_frames.
+        // Leaving n_frames as is.
+      }
+
+      if (params.resolution) {
+        // Map resolution to size
+        // "720p" -> "1280x720" ? Or "Standard"?
+        // Config uses "standard", "high". Route might default to "720p".
+        // Let's map common values to be safe
+        if (params.resolution.toLowerCase() === "standard" || params.resolution === "720p") {
+          requestBody.size = "1280x720"
+        } else if (params.resolution.toLowerCase() === "high" || params.resolution === "1080p") {
+          requestBody.size = "1920x1080"
+        } else {
+          requestBody.size = params.resolution // Pass through if already in WxH format
+        }
+      }
+
+      // Sora aspect ratio handling if needed, usually 'size' covers it, but API might accept aspect_ratio too.
+      // Keeping input.aspect_ratio as well.
+
+    } else {
+      // Wan and others use duration/resolution directly
+      if (params.duration) {
+        requestBody.duration = params.duration
+      }
+      if (params.resolution) {
+        requestBody.resolution = params.resolution
+      }
     }
-    if (params.resolution) {
-      requestBody.resolution = params.resolution
-    }
+
     if (params.callBackUrl) {
       requestBody.callBackUrl = params.callBackUrl
     }
 
-    console.log("Wan 2.6 request:", JSON.stringify(requestBody, null, 2))
+    // Quick fix: If model is sora storyboard, ensure we don't send conflicting generic params if they are strict
+    // But mostly input is what matters.
+
+    console.log("Job request:", JSON.stringify(requestBody, null, 2))
 
     const response = await fetch(`${this.baseUrl}/jobs/createTask`, {
       method: "POST",
@@ -409,10 +472,14 @@ export class KieAIService {
     params: {
       model: string
       prompt: string
+      negative_prompt?: string
+      aspect_ratio?: string
       duration?: string
       resolution?: string
       image_urls?: string[]
       video_urls?: string[]
+      seed?: number
+      storyboard?: { prompt: string; duration?: string; img_url?: string }[]
     },
     options: {
       maxAttempts?: number
@@ -462,6 +529,126 @@ export class KieAIService {
     }
 
     throw new Error("Wan 2.6 video generation timeout")
+  }
+
+  // ============================================
+  // Upscale Methods (1080p & 4K)
+  // ============================================
+
+  /**
+   * Request 1080p Upscale
+   */
+  async get1080pVideo(params: { taskId: string; index?: number; callBackUrl?: string }): Promise<string> {
+    const response = await fetch(`${this.baseUrl}/veo/get-1080p-video`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.apiKey}`,
+      },
+      body: JSON.stringify({
+        taskId: params.taskId,
+        index: params.index || 0,
+        ...(params.callBackUrl && { callBackUrl: params.callBackUrl }),
+      }),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`KIE.AI 1080p upscale error: ${response.status} - ${errorText}`)
+    }
+
+    const result = await response.json()
+    if (result.code !== 200) {
+      throw new Error(`KIE.AI 1080p upscale failed: ${result.msg}`)
+    }
+
+    return result.data.taskId
+  }
+
+  /**
+   * Request 4K Upscale
+   */
+  async get4kVideo(params: { taskId: string; index?: number; callBackUrl?: string }): Promise<string> {
+    const response = await fetch(`${this.baseUrl}/veo/get-4k-video`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.apiKey}`,
+      },
+      body: JSON.stringify({
+        taskId: params.taskId,
+        index: params.index || 0,
+        ...(params.callBackUrl && { callBackUrl: params.callBackUrl }),
+      }),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`KIE.AI 4K upscale error: ${response.status} - ${errorText}`)
+    }
+
+    const result = await response.json()
+    if (result.code !== 200) {
+      throw new Error(`KIE.AI 4K upscale failed: ${result.msg}`)
+    }
+
+    return result.data.taskId
+  }
+
+
+
+  /**
+   * Request 1080p Upscale and Poll
+   */
+  async get1080pVideoWithPolling(
+    taskId: string,
+    options: { maxAttempts?: number; pollingInterval?: number, onProgress?: (attempt: number) => void } = {}
+  ): Promise<{ videoUrl: string; taskId: string }> {
+    const newTaskId = await this.get1080pVideo({ taskId })
+    return this.pollTask(newTaskId, "1080p upscale", options)
+  }
+
+  /**
+   * Request 4K Upscale and Poll
+   */
+  async get4kVideoWithPolling(
+    taskId: string,
+    options: { maxAttempts?: number; pollingInterval?: number, onProgress?: (attempt: number) => void } = {}
+  ): Promise<{ videoUrl: string; taskId: string }> {
+    const newTaskId = await this.get4kVideo({ taskId })
+    return this.pollTask(newTaskId, "4K upscale", options)
+  }
+
+  /**
+   * Generic polling helper
+   */
+  private async pollTask(
+    taskId: string,
+    actionName: string,
+    options: { maxAttempts?: number; pollingInterval?: number; onProgress?: (attempt: number) => void } = {}
+  ): Promise<{ videoUrl: string; taskId: string }> {
+    const maxAttempts = options.maxAttempts || 60
+    const pollingInterval = options.pollingInterval || 5000
+
+    console.log(`Starting KIE.AI ${actionName} polling for task ${taskId}...`)
+
+    let attempts = 0
+    while (attempts < maxAttempts) {
+      attempts++
+      if (options.onProgress) options.onProgress(attempts)
+
+      await new Promise((resolve) => setTimeout(resolve, pollingInterval))
+      const status = await this.checkStatus(taskId)
+
+      if (status.successFlag === 1) {
+        if (!status.response?.resultUrls?.[0]) throw new Error(`KIE.AI ${actionName} succeeded but no URL returned`)
+        return { videoUrl: status.response.resultUrls[0], taskId }
+      }
+      if (status.successFlag === 2 || status.successFlag === 3) {
+        throw new Error(`KIE.AI ${actionName} failed: ${status.errorMessage}`)
+      }
+    }
+    throw new Error(`KIE.AI ${actionName} timeout`)
   }
 }
 

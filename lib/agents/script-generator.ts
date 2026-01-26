@@ -148,12 +148,9 @@ CRITICAL REQUIREMENTS:
   try {
     // Call Gemini with multimodal input
     const result = await generateText({
-      model: google("gemini-2.5-flash"),
+      model: google("gemini-2.5-flash" as any),
+      system: SYSTEM_PROMPT,
       messages: [
-        {
-          role: "system",
-          content: SYSTEM_PROMPT,
-        },
         {
           role: "user",
           content: [
@@ -164,7 +161,6 @@ CRITICAL REQUIREMENTS:
         },
       ],
       temperature: 0.7,
-      maxTokens: 2000,
     })
 
     // Extract JSON from response
@@ -202,12 +198,9 @@ CRITICAL REQUIREMENTS:
       console.log("Retrying script generation...")
       try {
         const retryResult = await generateText({
-          model: google("gemini-2.5-flash"),
+          model: google("gemini-2.5-flash" as any),
+          system: SYSTEM_PROMPT,
           messages: [
-            {
-              role: "system",
-              content: SYSTEM_PROMPT,
-            },
             {
               role: "user",
               content: [
@@ -218,7 +211,6 @@ CRITICAL REQUIREMENTS:
             },
           ],
           temperature: 0.7,
-          maxTokens: 2000,
         })
 
         const retryJsonMatch = retryResult.text.match(/\{[\s\S]*\}/)

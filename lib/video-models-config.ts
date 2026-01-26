@@ -338,6 +338,24 @@ const SORA_2_PRO_MODEL_CONFIG: ModelConfig = {
         },
       },
     },
+    {
+      id: "storyboard",
+      name: "Storyboard",
+      description: "Generate multi-scene video from script",
+      apiModel: "sora-2-pro-storyboard",
+      parameters: {
+        durations: ["10s", "15s", "25s"],
+        resolutions: ["standard", "high"],
+        aspectRatios: ["portrait", "landscape"],
+      },
+      inputs: {
+        prompt: {
+          required: true,
+          minLength: 1,
+          maxLength: 20000,
+        },
+      },
+    },
   ],
 }
 

@@ -7,10 +7,12 @@ import { ScriptHistory } from "@/components/ugc/script-history"
 import type { ScriptOutput } from "@/lib/agents/script-generator"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { useLanguage } from "@/components/language-provider"
 
 type Tab = "create" | "history"
 
 export default function ScriptGeneratorPage() {
+  const { t } = useLanguage()
   const [activeTab, setActiveTab] = useState<Tab>("create")
   const [generatedScript, setGeneratedScript] = useState<ScriptOutput | null>(null)
   const [scriptId, setScriptId] = useState<string | null>(null)
@@ -19,12 +21,12 @@ export default function ScriptGeneratorPage() {
   const handleScriptGenerated = (script: ScriptOutput, id: string) => {
     setGeneratedScript(script)
     setScriptId(id)
-    toast.success("Roteiro gerado com sucesso!")
+    toast.success(t.scriptGeneratedSuccessfully)
   }
 
   const handleScriptChange = async (updatedScript: ScriptOutput) => {
     if (!scriptId) {
-      toast.error("Erro: ID do roteiro não encontrado")
+      toast.error(t.errorUpdatingScript)
       return
     }
 
@@ -45,10 +47,10 @@ export default function ScriptGeneratorPage() {
       }
 
       setGeneratedScript(updatedScript)
-      toast.success("Roteiro atualizado com sucesso!")
+      toast.success(t.scriptUpdatedSuccessfully)
     } catch (error) {
       console.error("Error updating script:", error)
-      toast.error(error instanceof Error ? error.message : "Erro ao atualizar roteiro")
+      toast.error(error instanceof Error ? error.message : t.errorUpdatingScript)
     }
   }
 
@@ -62,10 +64,9 @@ export default function ScriptGeneratorPage() {
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold mb-2">Gerador de Roteiro UGC</h1>
+          <h1 className="text-3xl md:text-4xl font-bold mb-2">{t.scriptGeneratorTitle}</h1>
           <p className="text-gray-400">
-            Crie roteiros estruturados para vídeos UGC com IA. Gere prompts para ferramentas de vídeo e scripts de áudio
-            em português.
+            {t.scriptGeneratorSubtitle}
           </p>
         </div>
 
@@ -81,7 +82,7 @@ export default function ScriptGeneratorPage() {
                   : "border-transparent text-gray-400 hover:text-white hover:border-gray-600"
               )}
             >
-              ✨ Criar Roteiro
+              ✨ {t.createScript}
             </button>
             <button
               onClick={() => setActiveTab("history")}
@@ -92,7 +93,7 @@ export default function ScriptGeneratorPage() {
                   : "border-transparent text-gray-400 hover:text-white hover:border-gray-600"
               )}
             >
-              📚 Histórico
+              📚 {t.history}
             </button>
           </div>
         </div>
@@ -113,7 +114,7 @@ export default function ScriptGeneratorPage() {
                   onClick={handleNewScript}
                   className="w-full px-4 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors border border-gray-600"
                 >
-                  ✨ Gerar Novo Roteiro
+                  ✨ {t.newScript}
                 </button>
               )}
             </div>
@@ -121,7 +122,7 @@ export default function ScriptGeneratorPage() {
             {/* Right Column: Preview/Result */}
             <div className="space-y-6">
               {!generatedScript && !isGenerating && (
-                <div className="flex items-center justify-center h-full min-h-[400px] border-2 border-dashed border-gray-700 rounded-lg">
+                <div className="flex items-center justify-center h-full min-h-[400px] border-2 border-dashed border-gray-700 rounded-lg bg-zinc-900/10">
                   <div className="text-center text-gray-500">
                     <svg
                       className="mx-auto h-12 w-12 mb-4"
@@ -136,18 +137,18 @@ export default function ScriptGeneratorPage() {
                         d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                       />
                     </svg>
-                    <p className="text-lg font-medium">Aguardando geração de roteiro</p>
-                    <p className="text-sm mt-1">Preencha o formulário ao lado e clique em "Gerar Roteiro"</p>
+                    <p className="text-lg font-medium">{t.waitingForScript}</p>
+                    <p className="text-sm mt-1">{t.fillFormToGenerate}</p>
                   </div>
                 </div>
               )}
 
               {isGenerating && (
-                <div className="flex items-center justify-center h-full min-h-[400px] border-2 border-gray-700 rounded-lg">
+                <div className="flex items-center justify-center h-full min-h-[400px] border-2 border-gray-700 rounded-lg bg-zinc-900/10">
                   <div className="text-center">
                     <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-white mb-4"></div>
-                    <p className="text-lg font-medium">Gerando roteiro...</p>
-                    <p className="text-sm text-gray-400 mt-1">Isso pode levar até 30 segundos</p>
+                    <p className="text-lg font-medium">{t.generatingScript}</p>
+                    <p className="text-sm text-gray-400 mt-1">{t.itMayTake30Sec}</p>
                   </div>
                 </div>
               )}

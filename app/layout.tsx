@@ -6,6 +6,7 @@ import { Analytics } from "@vercel/analytics/react"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { NavigationBar } from "@/components/navigation-bar"
 import { AuthProvider } from "@/components/auth-provider"
+import { LanguageProvider } from "@/components/language-provider"
 import { Toaster } from "@/components/ui/sonner"
 import "./globals.css"
 
@@ -110,8 +111,10 @@ export default function RootLayout({
       <body className="font-mono antialiased" style={{ backgroundColor: "#000000" }}>
         <ErrorBoundary>
           <AuthProvider>
-            <NavigationBar />
-            <Suspense fallback={null}>{children}</Suspense>
+            <LanguageProvider>
+              <NavigationBar />
+              <Suspense fallback={null}>{children}</Suspense>
+            </LanguageProvider>
           </AuthProvider>
         </ErrorBoundary>
         <Toaster />

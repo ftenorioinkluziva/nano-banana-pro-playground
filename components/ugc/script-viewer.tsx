@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { toast } from "sonner"
 import type { ScriptOutput, ScriptScene } from "@/lib/agents/script-generator"
+import { useLanguage } from "@/components/language-provider"
 
 interface SceneVideo {
   id: string
@@ -24,14 +25,16 @@ interface ScriptViewerProps {
   onScriptChange: (updatedScript: ScriptOutput) => void
 }
 
-const SCENE_TYPE_LABELS = {
-  hook: { label: "Hook", color: "bg-purple-500" },
-  solution: { label: "Solução", color: "bg-blue-500" },
-  benefit: { label: "Benefício", color: "bg-green-500" },
-  cta: { label: "CTA", color: "bg-orange-500" },
-}
-
 export function ScriptViewer({ script, scriptId, onScriptChange }: ScriptViewerProps) {
+  const { t } = useLanguage()
+
+  const SCENE_TYPE_LABELS = {
+    hook: { label: "Hook", color: "bg-purple-500" },
+    solution: { label: "Solução", color: "bg-blue-500" },
+    benefit: { label: "Benefício", color: "bg-green-500" },
+    cta: { label: "CTA", color: "bg-orange-500" },
+  }
+
   const [editedScript, setEditedScript] = useState<ScriptOutput>(script)
   const [expandedScenes, setExpandedScenes] = useState<Set<number>>(new Set())
   const [hasChanges, setHasChanges] = useState(false)
@@ -87,7 +90,7 @@ export function ScriptViewer({ script, scriptId, onScriptChange }: ScriptViewerP
   const handleCopyJSON = () => {
     const jsonString = JSON.stringify(editedScript, null, 2)
     navigator.clipboard.writeText(jsonString)
-    toast.success("JSON copiado para a área de transferência!")
+    toast.success(t.jsonCopied)
   }
 
   const handleDownloadJSON = () => {
@@ -101,12 +104,12 @@ export function ScriptViewer({ script, scriptId, onScriptChange }: ScriptViewerP
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
-    toast.success("JSON baixado com sucesso!")
+    toast.success(t.jsonDownloaded)
   }
 
   const handleGenerateVideo = async (sceneId: number) => {
     if (!scriptId) {
-      toast.error("Script ID não encontrado")
+      toast.error(t.errorUpdatingScript)
       return
     }
 
@@ -133,10 +136,10 @@ export function ScriptViewer({ script, scriptId, onScriptChange }: ScriptViewerP
         return newMap
       })
 
-      toast.success(`Vídeo da Cena ${sceneId} gerado com sucesso!`)
+      toast.success(`${t.videoGeneratedSuccessfully} ${sceneId}`)
     } catch (error) {
       console.error(`Error generating video for scene ${sceneId}:`, error)
-      toast.error(error instanceof Error ? error.message : "Erro ao gerar vídeo")
+      toast.error(error instanceof Error ? error.message : t.errorGeneratingScript)
     } finally {
       setGeneratingScenes(prev => {
         const newSet = new Set(prev)
@@ -149,7 +152,7 @@ export function ScriptViewer({ script, scriptId, onScriptChange }: ScriptViewerP
   const handleDownloadVideo = (sceneId: number, sceneVideo: SceneVideo) => {
     const videoSource = sceneVideo.video_base64 || sceneVideo.video_url
     if (!videoSource) {
-      toast.error("Vídeo não disponível para download")
+      toast.error(t.videoNotAvailable)
       return
     }
 
@@ -159,8 +162,37 @@ export function ScriptViewer({ script, scriptId, onScriptChange }: ScriptViewerP
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
-    toast.success("Download iniciado!")
+    toast.success(t.downloadStarted)
   }
+
+  // Storyboard handling
+  const [storyboardVideo, setStoryboardVideo] = useState<SceneVideo | null>(null)
+  const [isGeneratingStoryboard, setIsGeneratingStoryboard] = useState(false)
+
+  const handleGenerateStoryboard = async () => {
+    if (!scriptId) return
+    if (!confirm(`Generate full storyboard video? This costs between 150-270 credits.`)) return
+
+    setIsGeneratingStoryboard(true)
+    try {
+      const res = await fetch(`/api/scripts/${scriptId}/generate-storyboard`, { method: "POST" })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+
+      setStoryboardVideo(data.sceneVideo)
+      toast.success("Storyboard video generation started!")
+    } catch (e: any) {
+      toast.error(e.message)
+    } finally {
+      setIsGeneratingStoryboard(false)
+    }
+  }
+
+  useEffect(() => {
+    if (sceneVideos.has(0)) {
+      setStoryboardVideo(sceneVideos.get(0)!)
+    }
+  }, [sceneVideos])
 
   return (
     <div className="space-y-6">
@@ -169,23 +201,76 @@ export function ScriptViewer({ script, scriptId, onScriptChange }: ScriptViewerP
         <div className="flex items-start gap-3">
           <div className="text-2xl">📝</div>
           <div>
-            <h3 className="text-sm font-medium text-gray-400 mb-1">Resumo do Projeto</h3>
+            <h3 className="text-sm font-medium text-gray-400 mb-1">{t.projectSummary}</h3>
             <p className="text-lg text-white">{editedScript.project_summary}</p>
           </div>
         </div>
       </Card>
 
+      {/* Full Storyboard Video */}
+      <Card className="bg-gradient-to-br from-purple-900/20 to-blue-900/20 border-purple-500/30 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">📽️</span>
+            <div>
+              <h3 className="text-lg font-semibold text-white">Full Storyboard Video (Sora 2 Pro)</h3>
+              <p className="text-sm text-gray-400">Generate a complete video from all scenes using Sora 2 Pro Storyboard.</p>
+            </div>
+          </div>
+        </div>
+
+        {!storyboardVideo && !isGeneratingStoryboard && (
+          <Button
+            onClick={handleGenerateStoryboard}
+            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-6"
+          >
+            ✨ Generate Full Video (150-270 Credits)
+          </Button>
+        )}
+
+        {isGeneratingStoryboard && (
+          <div className="flex flex-col items-center justify-center p-8 bg-black/20 rounded-lg">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-white mb-2"></div>
+            <p className="text-sm text-gray-300">Generating storyboard video...</p>
+          </div>
+        )}
+
+        {storyboardVideo && storyboardVideo.status === 'complete' && (
+          <div className="space-y-3">
+            <video
+              src={storyboardVideo.video_url || storyboardVideo.video_base64 || undefined}
+              controls
+              className="w-full rounded-lg shadow-2xl border border-purple-500/30"
+            />
+            <Button
+              variant="outline"
+              onClick={() => handleDownloadVideo(0, storyboardVideo)}
+              className="w-full border-purple-500/50 text-purple-300 hover:bg-purple-900/20"
+            >
+              ⬇️ Download Storyboard Video
+            </Button>
+          </div>
+        )}
+
+        {storyboardVideo && storyboardVideo.status === 'error' && (
+          <div className="p-4 bg-red-500/10 border border-red-500/50 rounded-lg text-red-300 text-sm">
+            Error: {storyboardVideo.error_message}
+            <Button variant="link" onClick={handleGenerateStoryboard} className="text-red-300 underline">Retry</Button>
+          </div>
+        )}
+      </Card>
+
       {/* Scenes */}
       <div className="space-y-4">
         <h3 className="text-xl font-semibold flex items-center gap-2">
-          <span>Cenas</span>
+          <span>{t.scenes}</span>
           <Badge variant="secondary" className="bg-white/10">
-            {editedScript.scenes.length} {editedScript.scenes.length === 1 ? "cena" : "cenas"}
+            {editedScript.scenes.length} {t.scenesCount}
           </Badge>
         </h3>
 
         {editedScript.scenes.map((scene, index) => {
-          const sceneType = SCENE_TYPE_LABELS[scene.type] || { label: scene.type, color: "bg-gray-500" }
+          const sceneType = SCENE_TYPE_LABELS[scene.type as keyof typeof SCENE_TYPE_LABELS] || { label: scene.type, color: "bg-gray-500" }
           const isExpanded = expandedScenes.has(scene.scene_id)
           const sceneVideo = sceneVideos.get(scene.scene_id)
           const isGenerating = generatingScenes.has(scene.scene_id)
@@ -197,7 +282,7 @@ export function ScriptViewer({ script, scriptId, onScriptChange }: ScriptViewerP
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">🎬</span>
                   <div>
-                    <h4 className="text-lg font-semibold">Cena {scene.scene_id}</h4>
+                    <h4 className="text-lg font-semibold">{t.scene} {scene.scene_id}</h4>
                     <div className="flex items-center gap-2 mt-1">
                       <Badge className={`${sceneType.color} text-white`}>{sceneType.label}</Badge>
                       <span className="text-sm text-gray-400">{scene.duration_seconds}s</span>
@@ -210,14 +295,14 @@ export function ScriptViewer({ script, scriptId, onScriptChange }: ScriptViewerP
                   onClick={() => toggleScene(scene.scene_id)}
                   className="text-gray-400 hover:text-white"
                 >
-                  {isExpanded ? "Ocultar Prompt" : "Ver Prompt"}
+                  {isExpanded ? t.hidePrompt : t.showPrompt}
                 </Button>
               </div>
 
               {/* Video Prompt (Collapsible) */}
               {isExpanded && (
                 <div className="mb-4 p-4 bg-black/50 border border-gray-700 rounded-lg">
-                  <label className="text-sm font-medium text-gray-400 block mb-2">Video Prompt (EN):</label>
+                  <label className="text-sm font-medium text-gray-400 block mb-2">{t.visualPrompt} (EN):</label>
                   <p className="text-sm text-gray-300 whitespace-pre-wrap font-mono">{scene.video_prompt_en}</p>
                 </div>
               )}
@@ -225,7 +310,7 @@ export function ScriptViewer({ script, scriptId, onScriptChange }: ScriptViewerP
               {/* Audio Script (Editable) */}
               <div className="mb-4">
                 <label className="text-sm font-medium text-gray-300 block mb-2">
-                  Script de Áudio (PT-BR): <span className="text-xs text-gray-500">(editável)</span>
+                  {t.audioScriptEditable}: <span className="text-xs text-gray-500">({t.edit.toLowerCase()})</span>
                 </label>
                 <textarea
                   value={scene.audio_script_pt}
@@ -237,7 +322,7 @@ export function ScriptViewer({ script, scriptId, onScriptChange }: ScriptViewerP
               {/* Direction Notes (Editable) */}
               <div>
                 <label className="text-sm font-medium text-gray-300 block mb-2">
-                  Notas de Direção: <span className="text-xs text-gray-500">(editável)</span>
+                  {t.directionNotesEditable}: <span className="text-xs text-gray-500">({t.edit.toLowerCase()})</span>
                 </label>
                 <input
                   type="text"
@@ -250,7 +335,7 @@ export function ScriptViewer({ script, scriptId, onScriptChange }: ScriptViewerP
               {/* Video Generation Section */}
               <div className="mt-4 pt-4 border-t border-gray-700">
                 <label className="text-sm font-medium text-gray-300 block mb-2">
-                  Vídeo Gerado:
+                  {t.generatedVideo}:
                 </label>
 
                 {/* No video yet - show generate button */}
@@ -259,7 +344,7 @@ export function ScriptViewer({ script, scriptId, onScriptChange }: ScriptViewerP
                     onClick={() => handleGenerateVideo(scene.scene_id)}
                     className="w-full bg-purple-600 hover:bg-purple-700 text-white"
                   >
-                    🎬 Gerar Vídeo
+                    🎬 {t.generateVideo}
                   </Button>
                 )}
 
@@ -267,8 +352,8 @@ export function ScriptViewer({ script, scriptId, onScriptChange }: ScriptViewerP
                 {isGenerating && (
                   <div className="flex flex-col items-center justify-center p-8 bg-black/50 border border-gray-700 rounded-lg">
                     <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-white mb-4"></div>
-                    <p className="text-sm text-gray-300">Gerando vídeo...</p>
-                    <p className="text-xs text-gray-500 mt-1">Isso pode levar até 10 minutos</p>
+                    <p className="text-sm text-gray-300">{t.generating}...</p>
+                    <p className="text-xs text-gray-500 mt-1">{t.itMayTake10Min}</p>
                   </div>
                 )}
 
@@ -288,7 +373,7 @@ export function ScriptViewer({ script, scriptId, onScriptChange }: ScriptViewerP
                         size="sm"
                         className="border-gray-600 text-white hover:bg-white/10"
                       >
-                        ⬇️ Download
+                        ⬇️ {t.download}
                       </Button>
                       <Button
                         onClick={() => {
@@ -298,7 +383,7 @@ export function ScriptViewer({ script, scriptId, onScriptChange }: ScriptViewerP
                         size="sm"
                         className="border-red-600 text-red-500 hover:bg-red-500/10"
                       >
-                        🗑️ Deletar
+                        🗑️ {t.delete}
                       </Button>
                     </div>
                   </div>
@@ -308,7 +393,7 @@ export function ScriptViewer({ script, scriptId, onScriptChange }: ScriptViewerP
                 {sceneVideo && sceneVideo.status === "error" && (
                   <div className="p-4 bg-red-500/10 border border-red-500/50 rounded-lg">
                     <p className="text-sm text-red-400">
-                      ❌ Erro ao gerar vídeo: {sceneVideo.error_message || "Unknown error"}
+                      ❌ {t.error}: {sceneVideo.error_message || "Unknown error"}
                     </p>
                     <Button
                       onClick={() => handleGenerateVideo(scene.scene_id)}
@@ -316,7 +401,7 @@ export function ScriptViewer({ script, scriptId, onScriptChange }: ScriptViewerP
                       size="sm"
                       className="mt-2 border-red-600 text-red-500 hover:bg-red-500/10"
                     >
-                      🔄 Tentar Novamente
+                      🔄 {t.retry}
                     </Button>
                   </div>
                 )}
@@ -330,21 +415,21 @@ export function ScriptViewer({ script, scriptId, onScriptChange }: ScriptViewerP
       <div className="flex gap-3 flex-wrap">
         {hasChanges && (
           <Button onClick={handleSave} className="bg-green-600 hover:bg-green-700 text-white">
-            💾 Salvar Edições
+            💾 {t.saveEdits}
           </Button>
         )}
         <Button onClick={handleCopyJSON} variant="outline" className="border-gray-600 text-white hover:bg-white/10">
-          📋 Copiar JSON
+          📋 {t.copyJSON}
         </Button>
         <Button onClick={handleDownloadJSON} variant="outline" className="border-gray-600 text-white hover:bg-white/10">
-          ⬇️ Download JSON
+          ⬇️ {t.downloadJSON}
         </Button>
       </div>
 
       {/* JSON Preview (Optional) */}
       <details className="group">
         <summary className="cursor-pointer text-sm text-gray-400 hover:text-white transition-colors">
-          🔍 Ver JSON Completo
+          🔍 {t.viewFullJSON}
         </summary>
         <pre className="mt-2 p-4 bg-black/50 border border-gray-700 rounded-lg text-xs text-gray-300 overflow-x-auto">
           {JSON.stringify(editedScript, null, 2)}

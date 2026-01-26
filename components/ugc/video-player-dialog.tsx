@@ -9,8 +9,9 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, ExternalLink, Copy } from "lucide-react";
+import { Download, Copy } from "lucide-react";
 import { toast } from "sonner";
+import { useLanguage } from "@/components/language-provider";
 
 interface Generation {
   id: number;
@@ -35,6 +36,8 @@ export default function VideoPlayerDialog({
   open,
   onOpenChange,
 }: VideoPlayerDialogProps) {
+  const { t } = useLanguage()
+
   const handleCopyUrl = () => {
     if (generation.video_url) {
       navigator.clipboard.writeText(generation.video_url);
@@ -48,25 +51,19 @@ export default function VideoPlayerDialog({
     }
   };
 
-  const handleOpenInNewTab = () => {
-    if (generation.video_url) {
-      window.open(generation.video_url, "_blank");
-    }
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[800px]">
+      <DialogContent className="sm:max-w-[800px] bg-black border-gray-800 text-white">
         <DialogHeader>
-          <DialogTitle>{generation.product_name}</DialogTitle>
-          <DialogDescription>
-            Generated with {generation.ai_model}
+          <DialogTitle className="text-white">{generation.product_name}</DialogTitle>
+          <DialogDescription className="text-gray-400">
+            {t.complete} — {generation.ai_model}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           {/* Video Player */}
-          <div className="aspect-video bg-black rounded-lg overflow-hidden">
+          <div className="aspect-video bg-black rounded-lg overflow-hidden border border-gray-800">
             {generation.video_url ? (
               <video
                 src={generation.video_url}
@@ -87,8 +84,8 @@ export default function VideoPlayerDialog({
           <div className="space-y-3">
             {generation.visual_setting && (
               <div>
-                <h4 className="text-sm font-semibold mb-1">Scene Description</h4>
-                <p className="text-sm text-muted-foreground">
+                <h4 className="text-sm font-semibold mb-1 text-white">{t.style}</h4>
+                <p className="text-sm text-muted-foreground bg-gray-900/50 p-3 rounded border border-gray-800">
                   {generation.visual_setting}
                 </p>
               </div>
@@ -96,15 +93,29 @@ export default function VideoPlayerDialog({
 
             {generation.final_prompt && (
               <div>
-                <h4 className="text-sm font-semibold mb-1">Final Prompt Used</h4>
-                <p className="text-sm text-muted-foreground font-mono bg-muted p-2 rounded">
+                <div className="flex items-center justify-between mb-1">
+                  <h4 className="text-sm font-semibold text-white">{t.prompt}</h4>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-[10px] text-zinc-400 hover:text-white"
+                    onClick={() => {
+                      navigator.clipboard.writeText(generation.final_prompt || "")
+                      toast.success(t.promptCopied)
+                    }}
+                  >
+                    <Copy className="h-3 w-3 mr-1" />
+                    {t.copyPrompt}
+                  </Button>
+                </div>
+                <p className="text-sm text-muted-foreground font-mono bg-black border border-gray-800 p-3 rounded overflow-x-auto">
                   {generation.final_prompt}
                 </p>
               </div>
             )}
 
             <div className="flex items-center gap-2">
-              <Badge variant="secondary">{generation.ai_model}</Badge>
+              <Badge variant="secondary" className="bg-gray-800 text-gray-300 border-none">{generation.ai_model}</Badge>
               <span className="text-xs text-muted-foreground">
                 ID: {generation.batch_id.slice(0, 8)}
               </span>
@@ -112,33 +123,16 @@ export default function VideoPlayerDialog({
           </div>
 
           {/* Actions */}
-          <div className="flex gap-2 pt-4 border-t">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleCopyUrl}
-              disabled={!generation.video_url}
-            >
-              <Copy className="h-4 w-4 mr-2" />
-              Copy URL
-            </Button>
+          <div className="flex gap-2 pt-4 border-t border-gray-800">
             <Button
               variant="outline"
               size="sm"
               onClick={handleDownload}
               disabled={!generation.video_url}
+              className="bg-transparent border-gray-600 text-white hover:bg-gray-700"
             >
               <Download className="h-4 w-4 mr-2" />
-              Download
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleOpenInNewTab}
-              disabled={!generation.video_url}
-            >
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Open in New Tab
+              {t.download}
             </Button>
           </div>
         </div>

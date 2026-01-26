@@ -5,6 +5,7 @@ import type { NextRequest } from "next/server"
 const PUBLIC_ROUTES = [
   "/",
   "/api/auth",
+  "/api/stripe", // Allow Stripe webhooks
   "/api/check-api-key", // Keep this public for API key validation
 ]
 

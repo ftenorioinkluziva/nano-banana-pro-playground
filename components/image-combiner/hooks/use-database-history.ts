@@ -87,6 +87,7 @@ export function useDatabaseHistory(onToast?: (message: string, type: "success" |
             imageUrls: generation.imageUrls,
             aspectRatio: generation.aspectRatio,
             model: generation.model,
+            cost: generation.cost,
             description: generation.description,
           }),
         })
@@ -162,7 +163,7 @@ export function useDatabaseHistory(onToast?: (message: string, type: "success" |
     isLoading,
     isSyncing,
     hasMore: false,
-    loadMore: () => {},
+    loadMore: () => { },
     isLoadingMore: false,
   }
 }

@@ -18,9 +18,11 @@ import { GlobalDropZone } from "./global-drop-zone"
 import { FullscreenViewer } from "./fullscreen-viewer"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ApiKeyWarning } from "@/components/api-key-warning"
+import { useLanguage } from "@/components/language-provider"
 
 export function ImageCombiner() {
   const isMobile = useMobile()
+  const { language, t } = useLanguage()
   const [prompt, setPrompt] = useState("")
   const [model, setModel] = useState<"nano-banana-pro" | "z-image">("nano-banana-pro")
   const [resolution, setResolution] = useState<"1K" | "2K" | "4K">("2K")
@@ -120,6 +122,9 @@ export function ImageCombiner() {
     onToast: showToast,
     onImageUpload: handleImageUpload,
     onApiKeyMissing: () => setApiKeyMissing(true),
+    setUseUrls,
+    onUrlChange: handleUrlChange,
+    t,
   })
 
   const selectedGeneration = persistedGenerations.find((g) => g.id === selectedGenerationId) || persistedGenerations[0]
@@ -290,7 +295,7 @@ export function ImageCombiner() {
           const pngBlob = await convertToPngBlob(generatedImage.url)
           const clipboardItem = new ClipboardItem({ "image/png": pngBlob })
           await navigator.clipboard.write([clipboardItem])
-          setToast({ message: "Image copied to clipboard!", type: "success" })
+          setToast({ message: t.copied, type: "success" })
           setTimeout(() => setToast(null), 2000)
           return
         } catch (clipboardError) {
@@ -301,7 +306,7 @@ export function ImageCombiner() {
             reader.onloadend = async () => {
               try {
                 await navigator.clipboard.writeText(reader.result as string)
-                setToast({ message: "Image data copied! Paste in compatible apps.", type: "success" })
+                setToast({ message: t.copied, type: "success" })
                 setTimeout(() => setToast(null), 3000)
               } catch (err) {
                 throw new Error("Clipboard not supported")
@@ -311,7 +316,7 @@ export function ImageCombiner() {
             return
           } catch (fallbackError) {
             setToast({
-              message: "Copy not supported. Use download button instead.",
+              message: t.copyFailed,
               type: "error",
             })
             setTimeout(() => setToast(null), 3000)
@@ -320,14 +325,14 @@ export function ImageCombiner() {
         }
       }
 
-      setToast({ message: "Copying image...", type: "success" })
+      setToast({ message: t.copying, type: "success" })
       window.focus()
 
       const pngBlob = await convertToPngBlob(generatedImage.url)
       const clipboardItem = new ClipboardItem({ "image/png": pngBlob })
       await navigator.clipboard.write([clipboardItem])
 
-      setToast({ message: "Image copied to clipboard!", type: "success" })
+      setToast({ message: t.copied, type: "success" })
       setTimeout(() => setToast(null), 2000)
     } catch (error) {
       console.error("Error copying image:", error)
@@ -428,13 +433,13 @@ export function ImageCombiner() {
                 setUseUrls(false)
                 if (!image1) {
                   await handleImageUpload(file, 1)
-                  showToast("Image pasted successfully", "success")
+                  showToast(t.pastedSuccess, "success")
                 } else if (!image2) {
                   await handleImageUpload(file, 2)
-                  showToast("Image pasted to second slot", "success")
+                  showToast(t.pastedSlot2, "success")
                 } else {
                   await handleImageUpload(file, 1)
-                  showToast("Image replaced first slot", "success")
+                  showToast(t.replacedSlot1, "success")
                 }
               }
               return
@@ -462,7 +467,7 @@ export function ImageCombiner() {
 
             setTimeout(() => {
               handleUrlChange(url, targetSlot)
-              showToast(`Image URL pasted to ${targetSlot === 1 ? "first" : "second"} slot`, "success")
+              showToast(targetSlot === 1 ? t.urlLoadedSlot1 : t.urlLoadedSlot2, "success")
             }, 150)
           }
         }
@@ -690,36 +695,15 @@ export function ImageCombiner() {
         <div className="w-full max-w-[98vw] lg:max-w-[96vw] 2xl:max-w-[94vw]">
           <div className="w-full mx-auto select-none">
             <div className="bg-black/70 border-0 px-3 py-3 md:px-4 md:py-4 lg:px-6 lg:py-6 flex flex-col rounded-lg">
-              <div className="flex items-start justify-between gap-4 mb-2 md:mb-3 flex-shrink-0">
-                <div>
-                  {!logoLoaded && <Skeleton className="w-6 h-6 md:w-7 md:h-7 mb-0.5 md:mb-1 rounded" />}
-                  <img
-                    src="/v0-logo.svg"
-                    alt="v0 logo"
-                    width="28"
-                    height="28"
-                    className={`w-6 h-6 md:w-7 md:h-7 mb-0.5 md:mt-1 ${logoLoaded ? "block" : "hidden"}`}
-                    onLoad={() => setLogoLoaded(true)}
-                  />
-                  <h1 className="text-lg md:text-2xl font-bold text-white select-none leading-none">
-                    <div>Creato</div>
-                  </h1>
-                </div>
-              </div>
-
               {apiKeyMissing && <ApiKeyWarning />}
 
-              <div className="flex flex-col gap-4 xl:gap-0">
+
+              <div className="flex flex-col gap-4">
                 <div
                   ref={containerRef}
-                  className="flex flex-col xl:flex-row gap-4 xl:gap-0 xl:min-h-[60vh] 2xl:min-h-[62vh]"
+                  className="flex flex-col gap-4"
                 >
-                  <div
-                    className="flex flex-col xl:pl-4 xl:pr-4 xl:border-r xl:border-white/10 xl:pt-5 flex-shrink-0 xl:overflow-y-auto xl:max-h-[85vh] 2xl:max-h-[80vh]"
-                    style={{
-                      width: isMobile ? "100%" : `${leftWidth}%`,
-                    }}
-                  >
+                  <div className="flex flex-col xl:px-4 xl:pt-5 min-h-0 relative w-full">
                     <InputSection
                       prompt={prompt}
                       setPrompt={setPrompt}
@@ -758,39 +742,11 @@ export function ImageCombiner() {
                       onEnhancePrompt={enhancePrompt}
                       onApplyEnhancedPrompt={applyEnhancedPrompt}
                       onClearEnhancedPrompt={clearEnhancedPrompt}
+                      t={t}
                     />
-
-                    {/* Desktop History */}
-                    <div className="hidden xl:block mt-3 flex-shrink-0">
-                      <GenerationHistory
-                        generations={persistedGenerations}
-                        selectedId={selectedGenerationId}
-                        onSelect={setSelectedGenerationId}
-                        onCancel={cancelGeneration}
-                        onDelete={deleteGeneration}
-                        isLoading={historyLoading}
-                        hasMore={hasMore}
-                        onLoadMore={loadMore}
-                        isLoadingMore={isLoadingMore}
-                      />
-                    </div>
                   </div>
 
-                  <div
-                    className="hidden xl:flex items-center justify-center cursor-col-resize hover:bg-white/10 transition-colors relative group"
-                    style={{ width: "8px", flexShrink: 0 }}
-                    onMouseDown={handleMouseDown}
-                    onDoubleClick={handleDoubleClick}
-                  >
-                    <div className="w-0.5 h-8 bg-white/20 group-hover:bg-white/40 transition-colors rounded-full" />
-                  </div>
-
-                  <div
-                    className="flex flex-col xl:pl-4 xl:pr-4 h-[400px] sm:h-[500px] md:h-[600px] xl:h-auto flex-shrink-0"
-                    style={{
-                      width: isMobile ? "100%" : `${100 - leftWidth}%`,
-                    }}
-                  >
+                  <div className="flex flex-col xl:px-4 h-[400px] sm:h-[500px] md:h-[600px] relative w-full">
                     <OutputSection
                       selectedGeneration={selectedGeneration}
                       generations={persistedGenerations}
@@ -807,11 +763,12 @@ export function ImageCombiner() {
                       onCopy={copyImageToClipboard}
                       onDownload={downloadImage}
                       onOpenInNewTab={openImageInNewTab}
+                      t={t}
                     />
                   </div>
                 </div>
-                {/* Mobile History - After both sections */}
-                <div className="xl:hidden flex-shrink-0">
+
+                <div className="flex-shrink-0 xl:px-4">
                   <GenerationHistory
                     generations={persistedGenerations}
                     selectedId={selectedGenerationId}
@@ -822,6 +779,7 @@ export function ImageCombiner() {
                     hasMore={hasMore}
                     onLoadMore={loadMore}
                     isLoadingMore={isLoadingMore}
+                    t={t}
                   />
                 </div>
               </div>

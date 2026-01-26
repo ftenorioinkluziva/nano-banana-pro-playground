@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import VideoPlayerDialog from "./video-player-dialog";
 import { useUGCSSE } from "@/hooks/use-ugc-sse";
 import { CenteredSpinner, NoHistoryEmptyState } from "@/components/shared";
+import { useLanguage } from "@/components/language-provider";
 
 interface Generation {
   id: number;
@@ -29,6 +30,7 @@ interface Generation {
 }
 
 export default function UGCGenerationHistory() {
+  const { t } = useLanguage()
   const [generations, setGenerations] = useState<Generation[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"all" | "pending" | "completed" | "failed">("all");
@@ -53,12 +55,12 @@ export default function UGCGenerationHistory() {
         prev.map((gen) =>
           gen.batch_id === data.batch_id
             ? {
-                ...gen,
-                status: "completed",
-                video_url: data.video_url,
-                thumbnail_url: data.thumbnail_url,
-                updated_at: new Date().toISOString(),
-              }
+              ...gen,
+              status: "completed",
+              video_url: data.video_url,
+              thumbnail_url: data.thumbnail_url,
+              updated_at: new Date().toISOString(),
+            }
             : gen
         )
       );
@@ -154,10 +156,16 @@ export default function UGCGenerationHistory() {
       failed: "destructive",
     };
 
+    const labels: Record<Generation["status"], string> = {
+      pending: t.processing,
+      completed: t.complete,
+      failed: t.failed,
+    };
+
     return (
       <Badge variant={variants[status]} className="flex items-center gap-1">
         {getStatusIcon(status)}
-        {status}
+        {labels[status]}
       </Badge>
     );
   };
@@ -187,19 +195,19 @@ export default function UGCGenerationHistory() {
 
   return (
     <>
-      <Card>
+      <Card className="bg-black/50 border-gray-800">
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
+          <CardTitle className="flex items-center justify-between text-white">
             <span className="flex items-center gap-2">
-              Generation History
+              {t.generationHistory}
               {sseConnected ? (
-                <Badge variant="outline" className="flex items-center gap-1">
-                  <Wifi className="h-3 w-3 text-green-500" />
+                <Badge variant="outline" className="flex items-center gap-1 border-green-900 text-green-500">
+                  <Wifi className="h-3 w-3" />
                   Live
                 </Badge>
               ) : (
-                <Badge variant="outline" className="flex items-center gap-1">
-                  <WifiOff className="h-3 w-3 text-red-500" />
+                <Badge variant="outline" className="flex items-center gap-1 border-red-900 text-red-500">
+                  <WifiOff className="h-3 w-3" />
                   Offline
                 </Badge>
               )}
@@ -214,45 +222,45 @@ export default function UGCGenerationHistory() {
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                "Refresh"
+                t.refresh
               )}
             </Button>
           </CardTitle>
           <CardDescription>
-            Real-time tracking of your UGC video generation jobs
+            {t.ugcSubtitle}
             {pendingCount > 0 && (
               <span className="ml-2 text-yellow-600">
-                • {pendingCount} processing
+                • {pendingCount} {t.processing.toLowerCase()}
               </span>
             )}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-4 bg-gray-900">
               <TabsTrigger value="all">
-                All ({generations.length})
+                {t.all} ({generations.length})
               </TabsTrigger>
               <TabsTrigger value="pending">
-                Pending ({pendingCount})
+                {t.processing} ({pendingCount})
               </TabsTrigger>
               <TabsTrigger value="completed">
-                Completed ({completedCount})
+                {t.complete} ({completedCount})
               </TabsTrigger>
               <TabsTrigger value="failed">
-                Failed ({failedCount})
+                {t.failed} ({failedCount})
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value={activeTab} className="space-y-4 mt-4">
+            <TabsContent value={activeTab} className="space-y-4 mt-4 text-white">
               {loading && !generations.length ? (
-                <CenteredSpinner message="Loading generations..." />
+                <CenteredSpinner message={t.loading} />
               ) : filteredGenerations.length === 0 ? (
                 <NoHistoryEmptyState type="videos" />
               ) : (
                 <div className="space-y-3">
                   {filteredGenerations.map((generation) => (
-                    <Card key={generation.id} className="overflow-hidden">
+                    <Card key={generation.id} className="overflow-hidden bg-black/40 border-gray-800">
                       <CardContent className="p-4">
                         <div className="flex items-start gap-4">
                           {/* Thumbnail */}
@@ -278,12 +286,12 @@ export default function UGCGenerationHistory() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-2">
                               <div>
-                                <h3 className="font-semibold">
+                                <h3 className="font-semibold text-white">
                                   {generation.product_name}
                                 </h3>
                                 <div className="flex items-center gap-2 mt-1">
                                   {generation.capability_label && (
-                                    <Badge variant="outline" className="text-xs">
+                                    <Badge variant="outline" className="text-xs border-gray-700 text-gray-400">
                                       {generation.capability_label}
                                     </Badge>
                                   )}
@@ -302,10 +310,7 @@ export default function UGCGenerationHistory() {
                             )}
 
                             <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
-                              <span>Created: {formatDate(generation.created_at)}</span>
-                              {generation.updated_at !== generation.created_at && (
-                                <span>• Updated: {formatDate(generation.updated_at)}</span>
-                              )}
+                              <span>{t.created}: {formatDate(generation.created_at)}</span>
                             </div>
 
                             {/* Actions */}
@@ -317,7 +322,7 @@ export default function UGCGenerationHistory() {
                                   className="h-10 text-sm font-semibold !bg-white !text-black hover:!bg-gray-200"
                                 >
                                   <Play className="h-4 w-4 mr-1" />
-                                  Play
+                                  {t.play}
                                 </Button>
                                 <Button
                                   size="sm"
@@ -326,7 +331,7 @@ export default function UGCGenerationHistory() {
                                   className="bg-transparent border-gray-600 text-white hover:bg-gray-700"
                                 >
                                   <Download className="h-4 w-4 mr-1" />
-                                  Download
+                                  {t.download}
                                 </Button>
                               </div>
                             )}

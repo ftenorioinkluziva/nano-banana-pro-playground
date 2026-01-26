@@ -5,43 +5,32 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "sonner"
-import { X } from "lucide-react"
+import { X, Plus } from "lucide-react"
+import Link from "next/link"
+import { useLanguage } from "@/components/language-provider"
 
-interface ProductFormData {
+interface Brand {
+  id: number
   name: string
-  slug: string
-  price: string
-  category: string
-  format: string
-  quantity_label: string
-  description: string
-  target_audience: string
-  usage_instructions: string
-  contraindications: string
-  ingredients: string
-  benefits: string
-  nutritional_info: string
-  image_url: string
+  tone: string | null
 }
 
 interface Product {
   id: number
   name: string
-  slug: string | null
-  price: string | null
-  category: string | null
-  format: string | null
-  quantity_label: string | null
   description: string | null
-  target_audience: string | null
-  usage_instructions: string | null
-  contraindications: string | null
-  ingredients: string | null
-  benefits: any
-  nutritional_info: any
   image_url: string | null
+  target_audience: string | null
+  brand_id: number | null
 }
 
 interface ProductFormProps {
@@ -51,49 +40,46 @@ interface ProductFormProps {
 }
 
 export function ProductForm({ editingProduct, onSuccess, onCancel }: ProductFormProps) {
+  const { t } = useLanguage()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [formData, setFormData] = useState<ProductFormData>({
+  const [brands, setBrands] = useState<Brand[]>([])
+  const [formData, setFormData] = useState({
     name: "",
-    slug: "",
-    price: "",
-    category: "",
-    format: "",
-    quantity_label: "",
     description: "",
-    target_audience: "",
-    usage_instructions: "",
-    contraindications: "",
-    ingredients: "",
-    benefits: "",
-    nutritional_info: "",
     image_url: "",
+    target_audience: "",
+    brand_id: "",
   })
 
   const isEditMode = !!editingProduct
 
-  // Populate form when editing
+  useEffect(() => {
+    fetchBrands()
+  }, [])
+
   useEffect(() => {
     if (editingProduct) {
       setFormData({
         name: editingProduct.name || "",
-        slug: editingProduct.slug || "",
-        price: editingProduct.price || "",
-        category: editingProduct.category || "",
-        format: editingProduct.format || "",
-        quantity_label: editingProduct.quantity_label || "",
         description: editingProduct.description || "",
-        target_audience: editingProduct.target_audience || "",
-        usage_instructions: editingProduct.usage_instructions || "",
-        contraindications: editingProduct.contraindications || "",
-        ingredients: editingProduct.ingredients || "",
-        benefits: editingProduct.benefits ? JSON.stringify(editingProduct.benefits, null, 2) : "",
-        nutritional_info: editingProduct.nutritional_info
-          ? JSON.stringify(editingProduct.nutritional_info, null, 2)
-          : "",
         image_url: editingProduct.image_url || "",
+        target_audience: editingProduct.target_audience || "",
+        brand_id: editingProduct.brand_id?.toString() || "",
       })
     }
   }, [editingProduct])
+
+  const fetchBrands = async () => {
+    try {
+      const response = await fetch("/api/brands")
+      if (response.ok) {
+        const data = await response.json()
+        setBrands(data.brands)
+      }
+    } catch (error) {
+      console.error("Failed to fetch brands:", error)
+    }
+  }
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -102,26 +88,19 @@ export function ProductForm({ editingProduct, onSuccess, onCancel }: ProductForm
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
+  const handleBrandChange = (value: string) => {
+    setFormData((prev) => ({ ...prev, brand_id: value }))
+  }
+
   const handleReset = () => {
     setFormData({
       name: "",
-      slug: "",
-      price: "",
-      category: "",
-      format: "",
-      quantity_label: "",
       description: "",
-      target_audience: "",
-      usage_instructions: "",
-      contraindications: "",
-      ingredients: "",
-      benefits: "",
-      nutritional_info: "",
       image_url: "",
+      target_audience: "",
+      brand_id: "",
     })
-    if (onCancel) {
-      onCancel()
-    }
+    onCancel?.()
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -133,44 +112,38 @@ export function ProductForm({ editingProduct, onSuccess, onCancel }: ProductForm
         ? `/api/products/${editingProduct.id}`
         : "/api/products"
 
-      const method = isEditMode ? "PUT" : "POST"
+      const payload = {
+        ...formData,
+        brand_id: formData.brand_id ? Number(formData.brand_id) : null,
+      }
 
       const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
+        method: isEditMode ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       })
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.message || `Failed to ${isEditMode ? "update" : "create"} product`)
+        throw new Error(error.error || "Failed to save product")
       }
 
-      const result = await response.json()
-      toast.success(`Product ${isEditMode ? "updated" : "created"} successfully!`)
-
-      // Reset form
+      toast.success(t.productSaved)
       handleReset()
-
-      // Notify parent
-      if (onSuccess) {
-        onSuccess()
-      }
+      onSuccess?.()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : `Failed to ${isEditMode ? "update" : "create"} product`)
+      toast.error(error instanceof Error ? error.message : "Failed to save product")
     } finally {
       setIsSubmitting(false)
     }
   }
 
   return (
-    <Card className="w-full max-w-4xl mx-auto bg-black/50 border-gray-800">
+    <Card className="w-full max-w-2xl mx-auto bg-black/50 border-gray-800">
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-2xl text-white">
-            {isEditMode ? "Edit Product" : "Register New Product"}
+          <CardTitle className="text-xl text-white">
+            {isEditMode ? t.editProduct : t.newProduct}
           </CardTitle>
           {isEditMode && (
             <Button
@@ -185,198 +158,103 @@ export function ProductForm({ editingProduct, onSuccess, onCancel }: ProductForm
         </div>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Information */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-white">Basic Information</h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Product Name *</Label>
-                <Input
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  required
-                  className="bg-black border-gray-800"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="slug">Slug</Label>
-                <Input
-                  id="slug"
-                  name="slug"
-                  value={formData.slug}
-                  onChange={handleChange}
-                  placeholder="product-name"
-                  className="bg-black border-gray-800"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="price">Price</Label>
-                <Input
-                  id="price"
-                  name="price"
-                  type="number"
-                  step="0.01"
-                  value={formData.price}
-                  onChange={handleChange}
-                  placeholder="0.00"
-                  className="bg-black border-gray-800"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
-                <Input
-                  id="category"
-                  name="category"
-                  value={formData.category}
-                  onChange={handleChange}
-                  className="bg-black border-gray-800"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="format">Format</Label>
-                <Input
-                  id="format"
-                  name="format"
-                  value={formData.format}
-                  onChange={handleChange}
-                  placeholder="e.g., Capsules, Powder"
-                  className="bg-black border-gray-800"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="quantity_label">Quantity Label</Label>
-                <Input
-                  id="quantity_label"
-                  name="quantity_label"
-                  value={formData.quantity_label}
-                  onChange={handleChange}
-                  placeholder="e.g., 60 capsules"
-                  className="bg-black border-gray-800"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="image_url">Image URL</Label>
-              <Input
-                id="image_url"
-                name="image_url"
-                type="url"
-                value={formData.image_url}
-                onChange={handleChange}
-                placeholder="https://example.com/image.jpg"
-                className="bg-black border-gray-800"
-              />
-            </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="name">{t.productName} *</Label>
+            <Input
+              id="name"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              required
+              placeholder={t.productPlaceholders.name}
+              className="bg-black border-gray-800"
+            />
           </div>
 
-          {/* Detailed Information */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-white">Detailed Information</h3>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                rows={3}
-                className="bg-black border-gray-800"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="target_audience">Target Audience</Label>
-              <Textarea
-                id="target_audience"
-                name="target_audience"
-                value={formData.target_audience}
-                onChange={handleChange}
-                rows={2}
-                placeholder="e.g., Athletes, Seniors, Women, etc."
-                className="bg-black border-gray-800"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="ingredients">Ingredients</Label>
-              <Textarea
-                id="ingredients"
-                name="ingredients"
-                value={formData.ingredients}
-                onChange={handleChange}
-                rows={3}
-                className="bg-black border-gray-800"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="usage_instructions">Usage Instructions</Label>
-              <Textarea
-                id="usage_instructions"
-                name="usage_instructions"
-                value={formData.usage_instructions}
-                onChange={handleChange}
-                rows={3}
-                className="bg-black border-gray-800"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="contraindications">Contraindications</Label>
-              <Textarea
-                id="contraindications"
-                name="contraindications"
-                value={formData.contraindications}
-                onChange={handleChange}
-                rows={3}
-                className="bg-black border-gray-800"
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="description">{t.productDescription} *</Label>
+            <Textarea
+              id="description"
+              name="description"
+              value={formData.description}
+              onChange={handleChange}
+              rows={3}
+              required
+              placeholder={t.productPlaceholders.description}
+              className="bg-black border-gray-800"
+            />
           </div>
 
-          {/* JSON Fields */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-white">Additional Data (JSON format)</h3>
-
-            <div className="space-y-2">
-              <Label htmlFor="benefits">Benefits (JSON)</Label>
-              <Textarea
-                id="benefits"
-                name="benefits"
-                value={formData.benefits}
-                onChange={handleChange}
-                rows={3}
-                placeholder='{"benefit1": "value", "benefit2": "value"}'
-                className="bg-black border-gray-800 font-mono text-sm"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="nutritional_info">Nutritional Info (JSON)</Label>
-              <Textarea
-                id="nutritional_info"
-                name="nutritional_info"
-                value={formData.nutritional_info}
-                onChange={handleChange}
-                rows={3}
-                placeholder='{"calories": 100, "protein": "5g"}'
-                className="bg-black border-gray-800 font-mono text-sm"
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="image_url">{t.productImageUrl} *</Label>
+            <Input
+              id="image_url"
+              name="image_url"
+              type="url"
+              value={formData.image_url}
+              onChange={handleChange}
+              required
+              placeholder="https://example.com/product.jpg"
+              className="bg-black border-gray-800"
+            />
+            {formData.image_url && (
+              <div className="mt-2 p-2 rounded bg-gray-900 border border-gray-800">
+                <img
+                  src={formData.image_url}
+                  alt="Preview"
+                  className="max-h-32 rounded object-contain mx-auto"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none"
+                  }}
+                />
+              </div>
+            )}
           </div>
 
-          <div className="flex gap-2">
+          <div className="space-y-2">
+            <Label htmlFor="target_audience">{t.targetAudience} *</Label>
+            <Textarea
+              id="target_audience"
+              name="target_audience"
+              value={formData.target_audience}
+              onChange={handleChange}
+              rows={2}
+              required
+              placeholder={t.productPlaceholders.target_audience}
+              className="bg-black border-gray-800"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="brand_id">{t.brand} *</Label>
+              <Link
+                href="/brands"
+                className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
+              >
+                <Plus className="h-3 w-3" />
+                {t.manageBrands}
+              </Link>
+            </div>
+            <Select value={formData.brand_id || ""} onValueChange={handleBrandChange} required>
+              <SelectTrigger className="bg-black border-gray-800">
+                <SelectValue placeholder={t.selectBrand} />
+              </SelectTrigger>
+              <SelectContent className="bg-black border-gray-800 text-white">
+                {brands.map((brand) => (
+                  <SelectItem key={brand.id} value={brand.id.toString()}>
+                    {brand.name}
+                    {brand.tone && (
+                      <span className="text-gray-400 ml-2">({brand.tone})</span>
+                    )}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex gap-2 pt-4">
             {isEditMode && (
               <Button
                 type="button"
@@ -384,21 +262,19 @@ export function ProductForm({ editingProduct, onSuccess, onCancel }: ProductForm
                 onClick={handleReset}
                 className="flex-1 bg-transparent border-gray-600 text-white hover:bg-gray-700"
               >
-                Cancel
+                {t.cancel}
               </Button>
             )}
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1 h-10 md:h-12 text-sm md:text-base font-semibold !bg-white !text-black hover:!bg-gray-200 disabled:opacity-50"
+              className="flex-1 !bg-white !text-black hover:!bg-gray-200 disabled:opacity-50"
             >
               {isSubmitting
-                ? isEditMode
-                  ? "Updating Product..."
-                  : "Creating Product..."
+                ? t.loading
                 : isEditMode
-                ? "Update Product"
-                : "Create Product"}
+                  ? t.editProduct
+                  : t.newProduct}
             </Button>
           </div>
         </form>

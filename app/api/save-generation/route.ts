@@ -13,6 +13,7 @@ interface SaveGenerationRequest {
   imageUrls?: string[]
   aspectRatio?: string
   model?: string
+  cost?: number
   description?: string
 }
 
@@ -38,6 +39,7 @@ export async function POST(request: NextRequest) {
       imageUrls,
       aspectRatio,
       model,
+      cost,
       description,
     } = body
 
@@ -72,6 +74,7 @@ export async function POST(request: NextRequest) {
         image_urls,
         aspect_ratio,
         model,
+        cost,
         description
       ) VALUES (
         ${id},
@@ -84,6 +87,7 @@ export async function POST(request: NextRequest) {
         ${imageUrlsArray},
         ${aspectRatio || '1:1'},
         ${model || 'nano-banana-pro'},
+        ${cost || null},
         ${description || null}
       )
       ON CONFLICT (id) DO UPDATE SET

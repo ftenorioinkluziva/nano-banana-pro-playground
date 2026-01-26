@@ -1,7 +1,7 @@
 import { neon } from "@neondatabase/serverless"
 import { drizzle } from "drizzle-orm/neon-http"
 import { eq } from "drizzle-orm"
-import { capabilities, brands, products } from "./schema"
+import { capabilities, brands, products, systemSettings } from "./schema"
 import "dotenv/config"
 
 const sql = neon(process.env.DATABASE_URL!)
@@ -355,6 +355,45 @@ async function seed() {
     }
   }
   console.log(`  ✓ ${productCount} products inserted`)
+
+  console.log(`  ✓ ${productCount} products inserted`)
+
+  console.log("  → Inserting system settings...")
+
+  const DEFAULT_USAGE_COSTS = {
+    VIDEO: {
+      DEFAULT: 50,
+      MODELS: {
+        "wan-2-6": 100,
+        "sora-2-pro": 100,
+        "veo": 50,
+        "veo-fast": 50,
+        "veo3": 60,
+        "veo3_fast": 40,
+      }
+    },
+    IMAGE: {
+      DEFAULT: 5,
+      MODELS: {
+        "nano-banana-pro": 5,
+        "z-image": 5,
+      }
+    },
+    PROMPT_ENHANCEMENT: 1
+  }
+
+  await db.insert(systemSettings).values({
+    key: 'usage_costs',
+    value: DEFAULT_USAGE_COSTS,
+    description: 'Configuration for usage costs in credits'
+  }).onConflictDoUpdate({
+    target: systemSettings.key,
+    set: {
+      value: DEFAULT_USAGE_COSTS,
+      updatedAt: new Date()
+    }
+  })
+  console.log("  ✓ System settings checked/inserted")
 
   console.log("✅ Seed completed!")
 }

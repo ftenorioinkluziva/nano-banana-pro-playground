@@ -54,7 +54,11 @@
       "Bash(node scripts/clean-orphan-user.js:*)",
       "Bash(node scripts/add-token-field.js:*)",
       "Bash(node scripts/add-user-id-columns.js:*)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx drizzle-kit:*)",
+      "Bash(pnpm db:reset:*)",
+      "Bash(pnpm db:seed:*)"
     ]
   }
 }

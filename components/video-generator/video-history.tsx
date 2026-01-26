@@ -9,6 +9,7 @@ import { Loader2, Clock, CheckCircle2, XCircle, Play, Download, Trash2 } from "l
 import type { VideoGeneration } from "@/types/video"
 import { CenteredSpinner, NoHistoryEmptyState } from "@/components/shared"
 import { VideoPlayerDialog } from "./video-player-dialog"
+import { useLanguage } from "@/components/language-provider"
 
 interface VideoHistoryProps {
   videos: VideoGeneration[]
@@ -18,6 +19,7 @@ interface VideoHistoryProps {
 }
 
 export function VideoHistory({ videos, isLoading, onDelete, onRefresh }: VideoHistoryProps) {
+  const { t } = useLanguage()
   const [activeTab, setActiveTab] = useState<"all" | "pending" | "completed" | "failed">("all")
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [selectedVideo, setSelectedVideo] = useState<VideoGeneration | null>(null)
@@ -36,9 +38,9 @@ export function VideoHistory({ videos, isLoading, onDelete, onRefresh }: VideoHi
 
   const getStatusBadge = (status: VideoGeneration["status"]) => {
     const statusMap = {
-      loading: { variant: "secondary" as const, label: "Processing" },
-      complete: { variant: "default" as const, label: "Complete" },
-      error: { variant: "destructive" as const, label: "Failed" },
+      loading: { variant: "secondary" as const, label: t.processing },
+      complete: { variant: "default" as const, label: t.complete },
+      error: { variant: "destructive" as const, label: t.failed },
     }
 
     const { variant, label } = statusMap[status]
@@ -100,7 +102,7 @@ export function VideoHistory({ videos, isLoading, onDelete, onRefresh }: VideoHi
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
-          <span>Video History</span>
+          <span>{t.videoHistory}</span>
           {onRefresh && (
             <Button
               variant="outline"
@@ -109,22 +111,22 @@ export function VideoHistory({ videos, isLoading, onDelete, onRefresh }: VideoHi
               disabled={isLoading}
               className="bg-transparent border-gray-600 text-white hover:bg-gray-700"
             >
-              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Refresh"}
+              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : t.refresh}
             </Button>
           )}
         </CardTitle>
         <CardDescription>
-          Your generated videos
-          {pendingCount > 0 && <span className="ml-2 text-yellow-600">• {pendingCount} processing</span>}
+          {t.yourGeneratedVideos}
+          {pendingCount > 0 && <span className="ml-2 text-yellow-600">• {pendingCount} {t.processing.toLowerCase()}</span>}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
           <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="all">All ({videos.length})</TabsTrigger>
-            <TabsTrigger value="pending">Processing ({pendingCount})</TabsTrigger>
-            <TabsTrigger value="completed">Complete ({completedCount})</TabsTrigger>
-            <TabsTrigger value="failed">Failed ({failedCount})</TabsTrigger>
+            <TabsTrigger value="all">{t.all} ({videos.length})</TabsTrigger>
+            <TabsTrigger value="pending">{t.processing} ({pendingCount})</TabsTrigger>
+            <TabsTrigger value="completed">{t.complete} ({completedCount})</TabsTrigger>
+            <TabsTrigger value="failed">{t.failed} ({failedCount})</TabsTrigger>
           </TabsList>
 
           <TabsContent value={activeTab} className="space-y-4 mt-4">
@@ -191,7 +193,7 @@ export function VideoHistory({ videos, isLoading, onDelete, onRefresh }: VideoHi
                                   className="h-9 text-sm font-semibold !bg-white !text-black hover:!bg-gray-200"
                                 >
                                   <Play className="h-3 w-3 mr-1" />
-                                  Play
+                                  {t.play}
                                 </Button>
                                 <Button
                                   size="sm"
@@ -200,7 +202,7 @@ export function VideoHistory({ videos, isLoading, onDelete, onRefresh }: VideoHi
                                   className="bg-transparent border-gray-600 text-white hover:bg-gray-700"
                                 >
                                   <Download className="h-3 w-3 mr-1" />
-                                  Download
+                                  {t.download}
                                 </Button>
                               </>
                             )}
@@ -217,7 +219,7 @@ export function VideoHistory({ videos, isLoading, onDelete, onRefresh }: VideoHi
                                 ) : (
                                   <>
                                     <Trash2 className="h-3 w-3 mr-1" />
-                                    Delete
+                                    {t.delete}
                                   </>
                                 )}
                               </Button>

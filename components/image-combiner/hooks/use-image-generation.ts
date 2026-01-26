@@ -22,6 +22,9 @@ interface UseImageGenerationProps {
   onToast: (message: string, type?: "success" | "error") => void
   onImageUpload: (file: File, imageNumber: 1 | 2) => Promise<void>
   onApiKeyMissing?: () => void
+  setUseUrls: (use: boolean) => void
+  onUrlChange: (url: string, slot: 1 | 2) => void
+  t: Record<string, string>
 }
 
 interface GenerateImageOptions {
@@ -74,6 +77,9 @@ export function useImageGeneration({
   onToast,
   onImageUpload,
   onApiKeyMissing,
+  setUseUrls,
+  onUrlChange,
+  t,
 }: UseImageGenerationProps) {
   const [selectedGenerationId, setSelectedGenerationId] = useState<string | null>(null)
   const [imageLoaded, setImageLoaded] = useState(false)
@@ -219,11 +225,9 @@ export function useImageGeneration({
               prompt: data.prompt || effectivePrompt,
               mode: data.mode, // Required field from API
               timestamp: Date.now(),
-              createdAt: new Date().toISOString(),
               aspectRatio: data.aspectRatio || effectiveAspectRatio,
-              resolution: data.resolution,
-              outputFormat: data.outputFormat,
               model: model,
+              cost: data.cost,
             }
 
             setGenerations((prev) => prev.filter((gen) => gen.id !== generationId))
@@ -246,9 +250,13 @@ export function useImageGeneration({
 
           const errorMessage = error instanceof Error ? error.message : "Unknown error occurred"
 
-          setGenerations((prev) => prev.filter((gen) => gen.id !== generationId))
+          if (errorMessage.includes("Credits insufficient") || errorMessage.includes("insufficient credits")) {
+            onToast(t.insufficientCredits || errorMessage, "error")
+          } else {
+            onToast(`Error generating image: ${errorMessage}`, "error")
+          }
 
-          onToast(`Error generating image: ${errorMessage}`, "error")
+          setGenerations((prev) => prev.filter((gen) => gen.id !== generationId))
         }
       })()
 
@@ -267,30 +275,17 @@ export function useImageGeneration({
     }
 
     try {
-      let blob: Blob
+      // Switch to URL mode
+      setUseUrls(true)
 
-      // Check if it's a data URL
-      if (selectedGeneration.imageUrl.startsWith("data:")) {
-        // Convert data URL to blob
-        const arr = selectedGeneration.imageUrl.split(",")
-        const mime = arr[0].match(/:(.*?);/)?.[1] || "image/png"
-        const bstr = atob(arr[1])
-        const n = bstr.length
-        const u8arr = new Uint8Array(n)
-        for (let i = 0; i < n; i++) {
-          u8arr[i] = bstr.charCodeAt(i)
-        }
-        blob = new Blob([u8arr], { type: mime })
+      // Smart slot selection
+      if (!image1Url) {
+        onUrlChange(selectedGeneration.imageUrl, 1)
+        onToast(t.urlLoadedSlot1 || "Image loaded into Input 1", "success")
       } else {
-        // It's a regular URL, fetch it
-        const response = await fetch(selectedGeneration.imageUrl)
-        blob = await response.blob()
+        onUrlChange(selectedGeneration.imageUrl, 2)
+        onToast(t.urlLoadedSlot2 || "Image loaded into Input 2", "success")
       }
-
-      const file = new File([blob], "generated-image.png", { type: "image/png" })
-
-      await onImageUpload(file, 1)
-      onToast("Image loaded into Input 1", "success")
     } catch (error) {
       console.error("Error loading image as input:", error)
       onToast("Error loading image", "error")

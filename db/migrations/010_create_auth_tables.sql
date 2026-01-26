@@ -1,3 +1,0 @@
--- Better Auth Tables Migration
--- Creates user authentication tables for Better Auth
--- Simplified version without complex PL/pgSQL blocks

@@ -44,7 +44,7 @@ export function useVideoDatabase() {
           body: JSON.stringify({
             id: video.id,
             prompt: video.prompt,
-            negativePrompt: video.negativePrompt,
+            negativePrompt: video.negative_prompt,
             mode: video.mode,
             videoUri: video.video_uri || video.video_url || "",
             resolution: video.resolution,

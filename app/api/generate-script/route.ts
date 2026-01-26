@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/lib/auth-session"
 import { getNeonClient } from "@/lib/db"
+import { checkCredits, deductCredits } from "@/lib/credits"
 import { generateUGCScript, type ScriptOutput } from "@/lib/agents/script-generator"
 
 export const dynamic = "force-dynamic"
@@ -120,6 +121,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check credits
+    const cost = 5
+    const hasCredits = await checkCredits(userId, cost)
+    if (!hasCredits) {
+      return NextResponse.json<ErrorResponse>({ error: `Insufficient credits. Needed: ${cost}` }, { status: 402 })
+    }
+
     console.log("Generating UGC script for product:", product.name)
 
     // Convert persona image to base64
@@ -136,6 +144,9 @@ export async function POST(request: NextRequest) {
     })
 
     console.log("Script generated successfully:", script.project_summary)
+
+    // Deduct credits
+    await deductCredits(userId, cost, "UGC Script Generation")
 
     // Save to database
     const scriptId = crypto.randomUUID()

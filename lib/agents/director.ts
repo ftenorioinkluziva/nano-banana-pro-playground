@@ -54,14 +54,13 @@ REGRAS DE CRIAÇÃO DO PROMPT:
   `
 
   try {
-    const model = google("gemini-2.5-flash", { apiKey })
+    const model = google("gemini-2.5-flash")
 
     const result = await generateText({
       model,
       system: systemMessage,
       prompt: "Gere o prompt técnico agora.",
       temperature: 0.7,
-      maxTokens: 1000,
     })
 
     return result.text.trim()

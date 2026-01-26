@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { generateText } from "ai"
 import { google } from "@ai-sdk/google"
+import { requireAuth } from "@/lib/auth-session"
+import { checkCredits, deductCredits } from "@/lib/credits"
+import { getPromptEnhancementCost } from "@/lib/usage-costs"
 
 export const dynamic = "force-dynamic"
 
@@ -67,6 +70,9 @@ Output MUST be valid JSON with this exact structure:
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await requireAuth()
+    const userId = session.user.id
+
     const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY
 
     if (!apiKey) {
@@ -96,7 +102,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const model = google("gemini-2.5-flash", {
+    // Check credits
+    const cost = await getPromptEnhancementCost()
+    const hasCredits = await checkCredits(userId, cost)
+    if (!hasCredits) {
+      return NextResponse.json<ErrorResponse>({ error: "Insufficient credits" }, { status: 402 })
+    }
+
+    const model = google("gemini-2.5-flash" as any, {
       apiKey: apiKey,
     })
 
@@ -148,6 +161,10 @@ IMPORTANT: Return as valid JSON with this exact structure:
 
     try {
       const parsedResponse = JSON.parse(jsonMatch[0]) as EnhanceVideoPromptResponse
+
+      // Deduct credits
+      await deductCredits(userId, cost, "Video Prompt Enhancement")
+
       return NextResponse.json<EnhanceVideoPromptResponse>(parsedResponse)
     } catch (parseError) {
       console.error("JSON parse error:", parseError)

@@ -3,8 +3,10 @@ import { requireAuth } from "@/lib/auth-session"
 import { KieAIService, mapModeToKieAIGenerationType, mapModelToKieAI } from "@/lib/kieai-service"
 import { getGenerationTypeConfig } from "@/lib/video-models-config"
 import type { VideoModelId, GenerationTypeId } from "@/types/video"
+import { checkCredits, deductCredits } from "@/lib/credits"
 
 export const dynamic = "force-dynamic"
+
 export const maxDuration = 600 // 10 minutes timeout for long video generations
 
 const MAX_PROMPT_LENGTH = 2000
@@ -86,7 +88,8 @@ async function fileToBase64(file: File): Promise<string> {
 export async function POST(request: NextRequest) {
   try {
     // Require authentication
-    await requireAuth()
+    // Require authentication
+    const user = await requireAuth()
 
     const kieApiKey = process.env.KIEAI_API_KEY
 
@@ -100,7 +103,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Parse form data
+    // Parse form data first to determine model and cost
     const formData = await request.formData()
 
     // New parametrized fields
@@ -117,11 +120,39 @@ export async function POST(request: NextRequest) {
     const aspectRatio = formData.get("aspectRatio") as string
     const duration = formData.get("duration") as string
 
+    // Determine the model to calculate cost
+    const selectedModel = modelId || legacyModel
+
+    // Import cost calculator
+    const { getVideoCost } = await import("@/lib/usage-costs")
+
+    // Normalize generation type for cost calculation
+    let costGenType = generationTypeId
+    if (!costGenType && legacyMode) {
+      // Simple normalization for legacy strings "Text to Video" -> "text-to-video"
+      costGenType = legacyMode.toLowerCase().replace(/\s+/g, '-') as any
+    }
+
+    const VIDEO_COST = await getVideoCost(selectedModel || undefined, {
+      type: costGenType || undefined,
+      resolution: resolution, // e.g. "720p", "1080p", "4k" - must match config keys if specific price exists
+      duration: duration
+    })
+
+    // Check credits
+    const hasCredits = await checkCredits(user.id, VIDEO_COST)
+    if (!hasCredits) {
+      return NextResponse.json<ErrorResponse>(
+        { error: "Insufficient credits", details: `You need ${VIDEO_COST} credits to generate a video with ${selectedModel || 'this model'}.` },
+        { status: 402 }
+      )
+    }
+
     // Determine if using new parametrized approach or legacy
     const isParametrized = Boolean(modelId && generationTypeId)
 
     console.log("Request type:", isParametrized ? "Parametrized" : "Legacy")
-    console.log("Model ID:", modelId || legacyModel)
+    console.log("Model ID:", selectedModel)
     console.log("Generation Type ID:", generationTypeId || legacyMode)
     console.log("Prompt:", prompt)
     console.log("Resolution:", resolution)
@@ -223,14 +254,26 @@ export async function POST(request: NextRequest) {
         throw new Error(`Invalid generation type: ${generationTypeId}`)
       }
 
-      result = await kieService.generateWithWan26AndPoll({
-        model: genTypeConfig.apiModel,
-        prompt,
-        duration: duration?.replace("s", "") || "10", // Default to 10s for Sora/Wan
-        resolution,
-        image_urls: uploadedImageUrls.length > 0 ? uploadedImageUrls : undefined,
-        video_urls: uploadedVideoUrls.length > 0 ? uploadedVideoUrls : undefined,
-      })
+      const modelForWan = genTypeConfig.apiModel
+      const uploadedVideoUrl = uploadedVideoUrls.length > 0 ? uploadedVideoUrls[0] : undefined
+
+      result = await kieService.generateWithWan26AndPoll(
+        {
+          model: modelForWan,
+          prompt: prompt,
+          negative_prompt: (formData.get("negativePrompt") as string) || undefined,
+          aspect_ratio: aspectRatio || "16:9",
+          duration: duration || "5",
+          resolution: resolution || "720p",
+          image_urls: uploadedImageUrls.length > 0 ? uploadedImageUrls : undefined,
+          video_urls: uploadedVideoUrl ? [uploadedVideoUrl] : undefined,
+        },
+        {
+          onProgress: (attempt, max) => {
+            console.log(`Wan 2.6 polling ${attempt}/${max}`)
+          }
+        }
+      )
     } else if (isParametrized && (modelId === "veo" || modelId === "veo-fast")) {
       // Use Veo API (new parametrized approach)
       const genTypeConfig = getGenerationTypeConfig(modelId, generationTypeId!)
@@ -239,8 +282,8 @@ export async function POST(request: NextRequest) {
       }
 
       const generationType = generationTypeId === "text-to-video" ? "TEXT_2_VIDEO" :
-                           generationTypeId === "frames-to-video" ? "FIRST_AND_LAST_FRAMES_2_VIDEO" :
-                           generationTypeId === "references-to-video" ? "REFERENCE_2_VIDEO" : "TEXT_2_VIDEO"
+        generationTypeId === "frames-to-video" ? "FIRST_AND_LAST_FRAMES_2_VIDEO" :
+          generationTypeId === "references-to-video" ? "REFERENCE_2_VIDEO" : "TEXT_2_VIDEO"
 
       result = await kieService.generateVideoWithPolling({
         prompt,
@@ -282,7 +325,7 @@ export async function POST(request: NextRequest) {
     const videoDataUrl = await kieService.downloadVideoAsBase64(result.videoUrl)
 
     // Return the complete video with all metadata
-    return NextResponse.json<GenerateVideoResponse>({
+    const response = NextResponse.json<GenerateVideoResponse>({
       videoUrl: videoDataUrl,
       videoUri: result.videoUrl,
       taskId: result.taskId,
@@ -293,6 +336,11 @@ export async function POST(request: NextRequest) {
       model: isParametrized ? modelId! : legacyModel,
       mode: effectiveMode,
     })
+
+    // Deduct credits
+    await deductCredits(user.id, VIDEO_COST, `Video Generation: ${isParametrized ? modelId : legacyModel}`)
+
+    return response
 
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {

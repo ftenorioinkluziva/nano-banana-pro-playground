@@ -22,6 +22,7 @@ export interface Generation {
   enhancedPrompt?: string | null
   description?: string | null
   imageUrls?: string[]
+  cost?: number
 }
 
 export type AspectRatioOption = {

@@ -10,9 +10,10 @@ interface ImageUploadBoxProps {
   onDrop: (e: React.DragEvent) => void
   onClear: () => void
   onSelect: () => void
+  t: Record<string, string>
 }
 
-export function ImageUploadBox({ imageNumber, preview, onDrop, onClear, onSelect }: ImageUploadBoxProps) {
+export function ImageUploadBox({ imageNumber, preview, onDrop, onClear, onSelect, t }: ImageUploadBoxProps) {
   return (
     <div
       className={cn(
@@ -76,8 +77,8 @@ export function ImageUploadBox({ imageNumber, preview, onDrop, onClear, onSelect
               d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
             />
           </svg>
-          <p className="text-xs">{imageNumber === 1 ? "Upload Image" : "Second Image"}</p>
-          <p className="text-[10px] text-gray-500 mt-0.5 hidden lg:block">(or drag & drop)</p>
+          <p className="text-xs">{imageNumber === 1 ? t.uploadImage : t.secondImage}</p>
+          <p className="text-[10px] text-gray-500 mt-0.5 hidden lg:block">{t.dragAndDrop}</p>
         </div>
       )}
     </div>

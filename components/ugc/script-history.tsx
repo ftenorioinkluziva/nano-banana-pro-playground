@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { ScriptViewer } from "@/components/ugc/script-viewer"
 import { toast } from "sonner"
 import type { ScriptOutput } from "@/lib/agents/script-generator"
+import { useLanguage } from "@/components/language-provider"
 
 interface Script {
   id: string
@@ -23,13 +24,8 @@ interface Script {
   updated_at: string
 }
 
-const TONE_LABELS = {
-  natural_friendly: "Natural/Amigo",
-  energetic: "Enérgico",
-  serious: "Sério",
-}
-
 export function ScriptHistory() {
+  const { t, language } = useLanguage()
   const [scripts, setScripts] = useState<Script[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedScript, setSelectedScript] = useState<Script | null>(null)
@@ -48,14 +44,14 @@ export function ScriptHistory() {
       setScripts(data.scripts || [])
     } catch (error) {
       console.error("Error fetching scripts:", error)
-      toast.error("Erro ao carregar histórico")
+      toast.error(t.errorLoadingHistory)
     } finally {
       setIsLoading(false)
     }
   }
 
   const handleDelete = async (scriptId: string) => {
-    if (!confirm("Tem certeza que deseja excluir este roteiro?")) return
+    if (!confirm(t.confirmDeleteScript)) return
 
     try {
       const response = await fetch(`/api/scripts/${scriptId}`, {
@@ -64,7 +60,7 @@ export function ScriptHistory() {
 
       if (!response.ok) throw new Error("Failed to delete script")
 
-      toast.success("Roteiro excluído com sucesso!")
+      toast.success(t.scriptDeletedSuccessfully)
 
       // If the deleted script was selected, clear selection
       if (selectedScript?.id === scriptId) {
@@ -74,7 +70,7 @@ export function ScriptHistory() {
       fetchScripts()
     } catch (error) {
       console.error("Error deleting script:", error)
-      toast.error("Erro ao excluir roteiro")
+      toast.error(t.errorDeleting)
     }
   }
 
@@ -111,16 +107,16 @@ export function ScriptHistory() {
           : s
       ))
 
-      toast.success("Roteiro atualizado com sucesso!")
+      toast.success(t.scriptUpdatedSuccessfully)
     } catch (error) {
       console.error("Error updating script:", error)
-      toast.error(error instanceof Error ? error.message : "Erro ao atualizar roteiro")
+      toast.error(error instanceof Error ? error.message : t.errorUpdatingScript)
     }
   }
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
-    return new Intl.DateTimeFormat("pt-BR", {
+    return new Intl.DateTimeFormat(language === "pt" ? "pt-BR" : "en-US", {
       day: "2-digit",
       month: "short",
       year: "numeric",
@@ -134,7 +130,7 @@ export function ScriptHistory() {
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-white mb-4"></div>
-          <p className="text-gray-400">Carregando histórico...</p>
+          <p className="text-gray-400">{t.loadingHistory}...</p>
         </div>
       </div>
     )
@@ -157,8 +153,8 @@ export function ScriptHistory() {
               d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
             />
           </svg>
-          <p className="text-lg font-medium">Nenhum roteiro encontrado</p>
-          <p className="text-sm mt-1">Crie seu primeiro roteiro na aba "Criar Roteiro"</p>
+          <p className="text-lg font-medium">{t.noHistoryFound}</p>
+          <p className="text-sm mt-1">{t.fillFormToGenerate}</p>
         </div>
       </div>
     )
@@ -170,9 +166,9 @@ export function ScriptHistory() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold">Histórico de Roteiros</h2>
+            <h2 className="text-2xl font-bold">{t.scriptHistory}</h2>
             <p className="text-sm text-gray-400 mt-1">
-              {scripts.length} {scripts.length === 1 ? "roteiro salvo" : "roteiros salvos"}
+              {scripts.length} {t.scriptsSaved}
             </p>
           </div>
           <Button
@@ -190,9 +186,8 @@ export function ScriptHistory() {
           {scripts.map((script) => (
             <Card
               key={script.id}
-              className={`bg-white/5 border-gray-700 p-4 hover:bg-white/10 transition-colors cursor-pointer ${
-                selectedScript?.id === script.id ? "ring-2 ring-white" : ""
-              }`}
+              className={`bg-white/5 border-gray-700 p-4 hover:bg-white/10 transition-colors cursor-pointer ${selectedScript?.id === script.id ? "ring-2 ring-white" : ""
+                }`}
               onClick={() => setSelectedScript(script)}
             >
               <div className="flex items-start gap-3">
@@ -213,7 +208,7 @@ export function ScriptHistory() {
                   {/* Meta Info */}
                   <div className="flex items-center gap-2 text-xs text-gray-500">
                     <Badge variant="secondary" className="bg-white/10 text-xs">
-                      {script.script_json.scenes.length} cenas
+                      {script.script_json.scenes.length} {t.scenesCount}
                     </Badge>
                     <span>•</span>
                     <span>{formatDate(script.created_at)}</span>
@@ -226,13 +221,13 @@ export function ScriptHistory() {
                         e.stopPropagation()
                         const jsonString = JSON.stringify(script.script_json, null, 2)
                         navigator.clipboard.writeText(jsonString)
-                        toast.success("JSON copiado!")
+                        toast.success(t.jsonCopied)
                       }}
                       size="sm"
                       variant="outline"
                       className="border-gray-600 text-white hover:bg-white/10 text-xs h-7"
                     >
-                      📋 Copiar
+                      📋 {t.copy}
                     </Button>
                     <Button
                       onClick={(e) => {
@@ -277,22 +272,22 @@ export function ScriptHistory() {
                   d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
                 />
               </svg>
-              <p className="text-lg font-medium">Selecione um roteiro</p>
-              <p className="text-sm mt-1">Clique em um roteiro ao lado para visualizar os detalhes</p>
+              <p className="text-lg font-medium">{t.selectScript}</p>
+              <p className="text-sm mt-1">{t.clickToViewDetails}</p>
             </div>
           </div>
         ) : (
           <div className="space-y-4">
             {/* Header with close button */}
             <div className="flex items-center justify-between">
-              <h3 className="text-xl font-bold">Detalhes do Roteiro</h3>
+              <h3 className="text-xl font-bold">{t.scriptDetails}</h3>
               <Button
                 onClick={() => setSelectedScript(null)}
                 variant="ghost"
                 size="sm"
                 className="text-gray-400 hover:text-white"
               >
-                ✕ Fechar
+                ✕ {t.closeDetails}
               </Button>
             </div>
 

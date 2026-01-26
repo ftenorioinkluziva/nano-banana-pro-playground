@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/lib/auth-session"
+import { checkCredits, deductCredits, addCredits } from "@/lib/credits"
 
 export const dynamic = "force-dynamic"
 
@@ -11,6 +12,7 @@ const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif
 const KIE_API_BASE = "https://api.kie.ai/api/v1/jobs"
 const CREATE_TASK_ENDPOINT = `${KIE_API_BASE}/createTask`
 const QUERY_STATUS_ENDPOINT = `${KIE_API_BASE}/recordInfo`
+
 const FILE_UPLOAD_ENDPOINT = "https://kieai.redpandaai.co/api/file-base64-upload"
 
 interface GenerateImageResponse {
@@ -22,7 +24,9 @@ interface GenerateImageResponse {
   taskId?: string
   aspectRatio?: string
   resolution?: string
+  resolution?: string
   outputFormat?: string
+  cost?: number
 }
 
 interface ErrorResponse {
@@ -71,6 +75,9 @@ interface KieFileUploadResponse {
   }
 }
 
+
+
+
 // Helper function to upload a base64 image to Kie's file upload API
 async function uploadBase64Image(base64Data: string, apiKey: string): Promise<string> {
   const response = await fetch(FILE_UPLOAD_ENDPOINT, {
@@ -99,10 +106,13 @@ async function uploadBase64Image(base64Data: string, apiKey: string): Promise<st
   return uploadResult.data.downloadUrl
 }
 
+// Helper function to fetch actual task cost
+
+
 export async function POST(request: NextRequest) {
   try {
     // Require authentication
-    await requireAuth()
+    const { user } = await requireAuth()
 
     const apiKey = process.env.KIEAI_API_KEY
 
@@ -122,6 +132,26 @@ export async function POST(request: NextRequest) {
     const aspectRatio = (formData.get("aspectRatio") as string) || "1:1"
     const resolution = (formData.get("resolution") as string) || "1K"
     const outputFormat = (formData.get("outputFormat") as string) || "PNG"
+
+    // Import cost calculator
+    const { getImageCost } = await import("@/lib/usage-costs")
+    // Determine mode for cost calculation
+    const hasImageInput = formData.has("image1") || formData.has("image1Url") || formData.has("image2") || formData.has("image2Url")
+    const mode = hasImageInput ? "image-editing" : "text-to-image"
+
+    const IMAGE_COST = await getImageCost(model, {
+      type: mode,
+      resolution: resolution
+    })
+
+    // Check credits
+    const hasCredits = await checkCredits(user.id, IMAGE_COST)
+    if (!hasCredits) {
+      return NextResponse.json<ErrorResponse>(
+        { error: "Insufficient credits", details: `You need ${IMAGE_COST} credits to generate an image.` },
+        { status: 402 }
+      )
+    }
 
     // Validate prompt
     if (!prompt?.trim()) {
@@ -356,6 +386,16 @@ export async function POST(request: NextRequest) {
         // Generate unique ID for this generation
         const generationId = crypto.randomUUID()
 
+        // Initial deduction of estimated cost
+        const deductionSuccess = await deductCredits(user.id, IMAGE_COST, `Image Generation: ${model}`)
+
+        if (!deductionSuccess) {
+          console.error("Failed to deduct credits after generation!")
+        }
+
+        // Use estimated cost as final cost
+        const finalCost = IMAGE_COST
+
         return NextResponse.json<GenerateImageResponse>({
           id: generationId,
           url: resultUrls[0],
@@ -366,6 +406,7 @@ export async function POST(request: NextRequest) {
           aspectRatio: aspectRatio,
           resolution: resolution,
           outputFormat: outputFormat,
+          cost: finalCost
         })
       }
 

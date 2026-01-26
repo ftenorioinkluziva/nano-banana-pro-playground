@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Download, ExternalLink, Copy } from "lucide-react"
 import { toast } from "sonner"
 import type { VideoGeneration } from "@/types/video"
+import { useLanguage } from "@/components/language-provider"
 
 interface VideoPlayerDialogProps {
   video: VideoGeneration
@@ -20,6 +21,7 @@ interface VideoPlayerDialogProps {
 }
 
 export function VideoPlayerDialog({ video, open, onOpenChange }: VideoPlayerDialogProps) {
+  const { t } = useLanguage()
   const videoUrl = video.video_uri || video.video_url
 
   const handleCopyUrl = () => {
@@ -50,7 +52,7 @@ export function VideoPlayerDialog({ video, open, onOpenChange }: VideoPlayerDial
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[900px]">
         <DialogHeader>
-          <DialogTitle>Video Player</DialogTitle>
+          <DialogTitle>{t.videoPlayer}</DialogTitle>
           <DialogDescription>{video.mode}</DialogDescription>
         </DialogHeader>
 
@@ -72,9 +74,25 @@ export function VideoPlayerDialog({ video, open, onOpenChange }: VideoPlayerDial
           <div className="space-y-3">
             {video.prompt && (
               <div>
-                <h4 className="text-sm font-semibold mb-1">Prompt</h4>
+                <div className="flex items-center justify-between mb-1">
+                  <h4 className="text-sm font-semibold">{t.prompt.charAt(0).toUpperCase() + t.prompt.slice(1)}</h4>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-[10px] text-zinc-400 hover:text-white"
+                    onClick={() => {
+                      navigator.clipboard.writeText(video.prompt || "")
+                      toast.success(t.promptCopied)
+                    }}
+                  >
+                    <Copy className="h-3 w-3 mr-1" />
+                    {t.copyPrompt}
+                  </Button>
+                </div>
                 <p className="text-sm text-muted-foreground bg-muted p-3 rounded">
-                  {video.prompt}
+                  {video.prompt.length > 100
+                    ? `${video.prompt.substring(0, 100)}...`
+                    : video.prompt}
                 </p>
               </div>
             )}
@@ -85,16 +103,11 @@ export function VideoPlayerDialog({ video, open, onOpenChange }: VideoPlayerDial
               <Badge variant="outline">{video.resolution}</Badge>
               <Badge variant="outline">{video.aspect_ratio}</Badge>
               {video.duration && <Badge variant="outline">{video.duration}</Badge>}
-              {video.task_id && (
-                <span className="text-xs text-muted-foreground">
-                  Task ID: {video.task_id.slice(0, 12)}...
-                </span>
-              )}
             </div>
 
             {video.created_at && (
               <p className="text-xs text-muted-foreground">
-                Created: {new Date(video.created_at).toLocaleString()}
+                {t.created}: {new Date(video.created_at).toLocaleString()}
               </p>
             )}
           </div>
@@ -104,32 +117,12 @@ export function VideoPlayerDialog({ video, open, onOpenChange }: VideoPlayerDial
             <Button
               variant="outline"
               size="sm"
-              onClick={handleCopyUrl}
-              disabled={!videoUrl}
-              className="bg-transparent border-gray-600 text-white hover:bg-gray-700"
-            >
-              <Copy className="h-4 w-4 mr-2" />
-              Copy URL
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
               onClick={handleDownload}
               disabled={!videoUrl}
               className="bg-transparent border-gray-600 text-white hover:bg-gray-700"
             >
               <Download className="h-4 w-4 mr-2" />
-              Download
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleOpenInNewTab}
-              disabled={!videoUrl}
-              className="bg-transparent border-gray-600 text-white hover:bg-gray-700"
-            >
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Open in New Tab
+              {t.download}
             </Button>
           </div>
         </div>

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { generateText } from "ai"
 import { google } from "@ai-sdk/google"
+import { requireAuth } from "@/lib/auth-session"
+import { checkCredits, deductCredits } from "@/lib/credits"
+import { getPromptEnhancementCost } from "@/lib/usage-costs"
 
 const MAX_PROMPT_LENGTH = 5000
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
@@ -33,7 +36,21 @@ async function convertToDataUrl(source: File | string): Promise<string> {
 
 export async function POST(request: NextRequest) {
   try {
+    const { user } = await requireAuth()
+
+    // Check credits
+    const COST = await getPromptEnhancementCost()
+    const hasCredits = await checkCredits(user.id, COST)
+
+    if (!hasCredits) {
+      return NextResponse.json<ErrorResponse>(
+        { error: "Insufficient credits", details: `You need ${COST} credit to enhance a prompt.` },
+        { status: 402 }
+      )
+    }
+
     const formData = await request.formData()
+    // ... [rest of the parsing logic]
     const prompt = formData.get("prompt") as string
     const image1 = formData.get("image1") as File | null
     const image2 = formData.get("image2") as File | null
@@ -191,14 +208,19 @@ Enhanced UGC prompt:`
         },
       ],
       temperature: 0.7,
-      maxTokens: 500,
     })
+
+    // Deduct credits
+    await deductCredits(user.id, COST, "Prompt Enhancement")
 
     return NextResponse.json<EnhancePromptResponse>({
       enhanced: text.trim(),
     })
   } catch (error: any) {
     console.error("Error enhancing prompt with images:", error)
+    if (error.message === 'Unauthorized') {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
     return NextResponse.json<ErrorResponse>(
       { error: error.message || "Failed to enhance prompt" },
       { status: 500 },

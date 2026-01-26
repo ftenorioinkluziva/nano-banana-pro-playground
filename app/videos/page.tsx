@@ -12,10 +12,12 @@ import {
 } from "@/components/shared"
 import { useVideoDatabaseHistory } from "@/components/video-generator/hooks/use-video-database-history"
 import { VideoHistory } from "@/components/video-generator/video-history"
+import { useLanguage } from "@/components/language-provider"
 
 const DEFAULT_APP_STATE: AppState = AppStateEnum.IDLE
 
 export default function VideosPage() {
+  const { t } = useLanguage()
   const [appState, setAppState] = useState<AppState>(DEFAULT_APP_STATE)
   const [currentVideo, setCurrentVideo] = useState<VideoGeneration | null>(null)
   const [generating, setGenerating] = useState(false)
@@ -51,13 +53,10 @@ export default function VideosPage() {
 
       const formData = new FormData()
 
-      // Check if using new parametrized approach
-      const isParametrized = Boolean(params.modelId && params.generationTypeId)
-
-      if (isParametrized) {
-        // New parametrized approach
-        formData.append("modelId", params.modelId!)
-        formData.append("generationTypeId", params.generationTypeId!)
+      // Params
+      if (params.modelId && params.generationTypeId) {
+        formData.append("modelId", params.modelId)
+        formData.append("generationTypeId", params.generationTypeId)
         formData.append("prompt", params.prompt)
         formData.append("resolution", params.resolution)
         formData.append("duration", params.duration || "6s")
@@ -69,61 +68,23 @@ export default function VideosPage() {
           formData.append("negativePrompt", params.negativePrompt)
         }
 
-        // Add images with generic naming
+        // Images
         if (params.images && params.images.length > 0) {
           params.images.forEach((img, index) => {
             formData.append(`image${index}`, img.file)
           })
         }
 
-        // Add videos with generic naming
+        // Videos
         if (params.videos && params.videos.length > 0) {
           params.videos.forEach((vid, index) => {
             formData.append(`video${index}`, vid.file)
           })
         }
 
-        // Add taskId if present
+        // TaskId
         if (params.taskId) {
           formData.append("taskId", params.taskId)
-        }
-      } else {
-        // Legacy approach
-        formData.append("prompt", params.prompt)
-        formData.append("mode", params.mode!)
-        formData.append("resolution", params.resolution)
-        formData.append("aspectRatio", params.aspectRatio || "16:9")
-        formData.append("duration", params.duration || "6s")
-        formData.append("model", params.model!)
-
-        if (params.negativePrompt) {
-          formData.append("negativePrompt", params.negativePrompt)
-        }
-
-        // Add mode-specific data (legacy)
-        if (params.mode === "Frames to Video") {
-          if (params.startFrame) {
-            formData.append("startFrame", params.startFrame.file)
-          }
-          if (params.endFrame) {
-            formData.append("endFrame", params.endFrame.file)
-          }
-          if (params.isLooping !== undefined) {
-            formData.append("isLooping", String(params.isLooping))
-          }
-        } else if (params.mode === "References to Video") {
-          if (params.referenceImages && params.referenceImages.length > 0) {
-            params.referenceImages.forEach((img, index) => {
-              formData.append(`referenceImage${index}`, img.file)
-            })
-          }
-          if (params.styleImage) {
-            formData.append("styleImage", params.styleImage.file)
-          }
-        } else if (params.mode === "Extend Video") {
-          if (params.originalTaskId) {
-            formData.append("originalTaskId", params.originalTaskId)
-          }
         }
       }
 
@@ -137,29 +98,24 @@ export default function VideosPage() {
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.details || errorData.error || "Failed to generate video")
+        throw new Error(errorData.details || errorData.error || t.generationFailed)
       }
 
       const data = await response.json()
-
-      console.log("Video generation completed:", data)
-
       setProgress(100)
 
-      // Generate unique ID for this generation
       const generationId = `video-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 
-      // Create video generation record from the complete response
       const generation: VideoGeneration = {
         id: generationId,
         prompt: params.prompt,
-        mode: params.mode,
+        mode: params.mode || "text-to-video",
         status: "complete",
-        video_url: data.videoUrl, // Use the base64 data URL from API
-        video_uri: data.videoUri, // Keep the original URI for reference
+        video_url: data.videoUrl,
+        video_uri: data.videoUri,
         resolution: params.resolution,
         aspect_ratio: params.aspectRatio,
-        model: params.model,
+        model: params.modelId || "veo-fast",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }
@@ -167,47 +123,36 @@ export default function VideosPage() {
       setCurrentVideo(generation)
       setAppState(AppStateEnum.SUCCESS)
 
-      // Save to database in the background
+      // Save to database
       try {
-        const saveResponse = await fetch("/api/save-video", {
+        await fetch("/api/save-video", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             id: generationId,
             prompt: params.prompt,
             negativePrompt: params.negativePrompt,
-            mode: params.mode,
+            mode: params.mode || "text-to-video",
             videoUri: data.videoUri,
-            taskId: data.taskId, // Save the task ID for Extend Video
+            taskId: data.taskId,
             resolution: params.resolution,
             aspectRatio: params.aspectRatio,
             duration: params.duration,
             model: data.model,
           }),
         })
-
-        if (!saveResponse.ok) {
-          console.error("Failed to save video to database")
-        } else {
-          console.log("Video saved to database successfully")
-          // Refresh video history after successful save
-          fetchVideoHistory()
-        }
+        fetchVideoHistory()
       } catch (saveError) {
         console.error("Error saving video:", saveError)
-        // Don't fail the generation if save fails
       }
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "An unknown error occurred"
+      const errorMessage = err instanceof Error ? err.message : t.generationFailed
       setError(errorMessage)
       setAppState(AppStateEnum.ERROR)
     } finally {
       setGenerating(false)
     }
-  }, [fetchVideoHistory])
+  }, [fetchVideoHistory, t.generationFailed])
 
   const handleNewVideo = useCallback(() => {
     setAppState(AppStateEnum.IDLE)
@@ -224,18 +169,17 @@ export default function VideosPage() {
 
   const handleDownload = useCallback((videoUrl: string, videoId: string) => {
     if (!videoUrl) {
-      alert("Video URL not available")
+      alert(t.videoUrlNotAvailable)
       return
     }
 
-    // Create a link and trigger download
     const link = document.createElement("a")
     link.href = videoUrl
     link.download = `creato-video-${videoId}.mp4`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
-  }, [])
+  }, [t.videoUrlNotAvailable])
 
   // Fetch products
   React.useEffect(() => {
@@ -251,7 +195,6 @@ export default function VideosPage() {
         setLoadingProducts(false)
       }
     }
-
     fetchProducts()
   }, [])
 
@@ -268,17 +211,12 @@ export default function VideosPage() {
     <AppErrorBoundary>
       <main className="min-h-screen bg-black p-8">
         <div className="container mx-auto max-w-7xl">
-          {/* Header */}
           <div className="mb-8">
-            <h1 className="text-4xl font-bold text-white mb-2">Video Generation</h1>
-            <p className="text-zinc-400">
-              Create stunning videos with AI-powered generation
-            </p>
+            <h1 className="text-4xl font-bold text-white mb-2" suppressHydrationWarning>{t.videoGenerationTitle}</h1>
+            <p className="text-zinc-400" suppressHydrationWarning>{t.videoGenerationSubtitle}</p>
           </div>
 
-          {/* Content */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left Column - Generation Form/Result */}
             <div className="lg:col-span-1">
               {appState === AppStateEnum.IDLE && (
                 <VideoGenerationForm
@@ -300,7 +238,7 @@ export default function VideosPage() {
                 <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-8">
                   <ProgressSpinner
                     progress={progress}
-                    message="Generating your video... This may take several minutes."
+                    message={`${t.generating} ${t.longerVideosTakeMoreTime}`}
                     size="lg"
                   />
                 </div>
@@ -318,8 +256,8 @@ export default function VideosPage() {
               {appState === AppStateEnum.ERROR && error && (
                 <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-8">
                   <CenteredError
-                    title="Failed to generate video"
-                    message={error || "An unexpected error occurred"}
+                    title={t.generationFailed}
+                    message={error}
                     onRetry={handleRetry}
                     onGoBack={handleNewVideo}
                   />
@@ -327,7 +265,6 @@ export default function VideosPage() {
               )}
             </div>
 
-            {/* Right Column - Video History */}
             <div className="lg:col-span-2">
               <VideoHistory
                 videos={videoHistory}
