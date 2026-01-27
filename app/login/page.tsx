@@ -40,7 +40,15 @@ export default function LoginPage() {
       }
 
       toast.success(t.loginSuccess)
-      router.push("/ugc")
+
+      const onboardingRes = await fetch("/api/user/onboarding")
+      const onboardingData = await onboardingRes.json()
+
+      if (onboardingData.onboardingCompleted) {
+        router.push("/ugc")
+      } else {
+        router.push("/getting-started")
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t.loginFailed)
     } finally {

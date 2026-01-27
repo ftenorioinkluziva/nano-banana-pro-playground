@@ -87,6 +87,7 @@ export const user = pgTable("user", {
   role: userRoleEnum("role").notNull().default("creator"),
   credits: integer("credits").notNull().default(10),
   stripeCustomerId: text("stripe_customer_id").unique(),
+  onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
   updatedAt: timestamp("updatedAt").notNull().defaultNow(),
 })
