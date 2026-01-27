@@ -24,9 +24,13 @@ RUN npm install -g pnpm
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build application (dummy DATABASE_URL for build-time module evaluation)
+# Build application (dummy envs for build-time module evaluation)
 ARG DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
+ARG BETTER_AUTH_SECRET="dummy_secret_for_build"
+ARG STRIPE_SECRET_KEY="dummy_stripe_key_for_build"
 ENV DATABASE_URL=$DATABASE_URL
+ENV BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
+ENV STRIPE_SECRET_KEY=$STRIPE_SECRET_KEY
 RUN pnpm build
 
 # Stage 3: Runner
