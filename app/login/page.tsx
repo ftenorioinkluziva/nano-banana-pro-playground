@@ -41,12 +41,22 @@ export default function LoginPage() {
 
       toast.success(t.loginSuccess)
 
-      const onboardingRes = await fetch("/api/user/onboarding")
-      const onboardingData = await onboardingRes.json()
+      toast.success(t.loginSuccess)
 
-      if (onboardingData.onboardingCompleted) {
-        router.push("/ugc")
-      } else {
+      try {
+        const onboardingRes = await fetch("/api/user/onboarding")
+        if (!onboardingRes.ok) {
+          throw new Error("Failed to fetch onboarding status")
+        }
+        const onboardingData = await onboardingRes.json()
+
+        if (onboardingData.onboardingCompleted) {
+          router.push("/ugc")
+        } else {
+          router.push("/getting-started")
+        }
+      } catch {
+        // Fallback to getting-started if onboarding status cannot be determined
         router.push("/getting-started")
       }
     } catch (error) {
