@@ -62,7 +62,9 @@
       "Bash(pnpm db:generate:*)",
       "Bash(pnpm db:migrate:*)",
       "Bash(pnpm db:push:*)",
-      "mcp__ide__getDiagnostics"
+      "mcp__ide__getDiagnostics",
+      "Bash(claude mcp add:*)",
+      "WebFetch(domain:docs.stripe.com)"
     ]
   }
 }
