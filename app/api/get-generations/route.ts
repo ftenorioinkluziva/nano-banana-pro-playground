@@ -23,27 +23,53 @@ export async function GET(request: NextRequest) {
     // 3. QUERY DATABASE - FILTERED BY USER_ID
     const sql = getNeonClient()
 
-    const result = await sql`
-      SELECT
-        id,
-        user_id,
-        prompt,
-        enhanced_prompt,
-        mode,
-        status,
-        image_url,
-        image_urls,
-        aspect_ratio,
-        model,
-        description,
-        created_at,
-        updated_at
-      FROM generations
-      WHERE deleted_at IS NULL AND user_id = ${userId}
-      ORDER BY created_at DESC
-      LIMIT ${limit}
-      OFFSET ${offset}
-    `
+    let result
+    if (limit === -1) {
+      // Fetch ALL (no limit)
+      result = await sql`
+        SELECT
+          id,
+          user_id,
+          prompt,
+          enhanced_prompt,
+          mode,
+          status,
+          image_url,
+          image_urls,
+          aspect_ratio,
+          model,
+          description,
+          created_at,
+          updated_at
+        FROM generations
+        WHERE deleted_at IS NULL AND user_id = ${userId}
+        ORDER BY created_at DESC
+        OFFSET ${offset}
+      `
+    } else {
+      // Fetch with LIMIT
+      result = await sql`
+        SELECT
+          id,
+          user_id,
+          prompt,
+          enhanced_prompt,
+          mode,
+          status,
+          image_url,
+          image_urls,
+          aspect_ratio,
+          model,
+          description,
+          created_at,
+          updated_at
+        FROM generations
+        WHERE deleted_at IS NULL AND user_id = ${userId}
+        ORDER BY created_at DESC
+        LIMIT ${limit}
+        OFFSET ${offset}
+      `
+    }
 
     return NextResponse.json({
       generations: result,

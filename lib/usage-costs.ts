@@ -1,13 +1,7 @@
-import { db } from "@/db"
-import { systemSettings } from "@/db/schema"
-import { eq } from "drizzle-orm"
-
 /**
  * Centralized configuration for usage costs in credits.
- * This object serves as the DEFAULT/FALLBACK if DB config is missing.
+ * Managed strictly in code without database dependency.
  */
-
-
 
 // Type definitions for more granular cost control
 export type DetailedCostConfig = {
@@ -29,95 +23,109 @@ export type UsageCostsConfig = {
 
 /**
  * Centralized configuration for usage costs in credits.
- * This object serves as the DEFAULT/FALLBACK if DB config is missing.
+ * Updated to include only models actually used in the system.
  */
 export const USAGE_COSTS: UsageCostsConfig = {
     VIDEO: {
         DEFAULT: 60,
         MODELS: {
-            "wan-2-6": {
-                default: 105,
-                "720p:5": 70,
-                "1080p:5": 105, // 104.5 rounded
-                "720p:10": 140,
-                "1080p:10": 210, // 209.5 rounded
-                "720p:15": 210,
-                "1080p:15": 315
-            },
-            "sora-2-pro": {
-                default: 150,
-                // Standard (720p)
-                "standard:10": 150,
-                "standard:15": 270,
-                "720p:10": 150,
-                "720p:15": 270,
-                // High (1080p)
-                "high:10": 330,
-                "high:15": 630,
-                "1080p:10": 330,
-                "1080p:15": 630
-            },
-            "veo": { // Google veo 3.1 (Quality)
-                default: 250,
-                "text-to-video": 250,
-                "image-to-video": 250,
-                "extend-video": 60,
-                "reference-to-video": 60, // Image shows "reference-to-video, Fast: 60", assuming it falls back or is specific
-                "1080p": 5,   // "Get 1080P Video"
-                "4k": 120     // "Get 4K Video"
-            },
-            "veo-fast": { // Google veo 3.1 Fast
+            // Google Veo
+            "veo-fast": {
                 default: 60,
                 "text-to-video": 60,
                 "image-to-video": 60,
                 "reference-to-video": 60,
-                "extend-video": 60
-            },
-            "veo3": { // Alias for veo
-                default: 250,
-                "text-to-video": 250,
-                "image-to-video": 250,
                 "extend-video": 60,
                 "1080p": 5,
                 "4k": 120
             },
-            "veo3_fast": 60, // Alias for veo-fast
+            "veo3_fast": { // Alias
+                default: 60,
+                "text-to-video": 60,
+                "image-to-video": 60,
+                "reference-to-video": 60,
+                "extend-video": 60,
+                "1080p": 5,
+                "4k": 120
+            },
+            "veo": {
+                default: 250,
+                "text-to-video": 250,
+                "image-to-video": 250,
+                "reference-to-video": 250,
+                "extend-video": 60, // Base extend
+                "extend-video-quality": 250,
+                "fallback": 100,
+                "1080p": 5,
+                "4k": 120
+            },
+            "veo3": { // Alias
+                default: 250,
+                "text-to-video": 250,
+                "image-to-video": 250,
+                "reference-to-video": 250,
+                "extend-video": 60,
+                "extend-video-quality": 250,
+                "1080p": 5,
+                "4k": 120
+            },
+            // Wan 2.6
+            "wan-2-6": {
+                default: 70, // 720p 5s
+                "720p:5s": 70,
+                "720p:5": 70,
+                "720p:10s": 140,
+                "720p:10": 140,
+                "720p:15s": 210,
+                "720p:15": 210,
+                "1080p:5s": 105,
+                "1080p:5": 105,
+                "1080p:10s": 210,
+                "1080p:10": 210,
+                "1080p:15s": 315,
+                "1080p:15": 315
+            },
+            // Sora 2 Pro
+            "sora-2-pro": {
+                default: 150, // Standard 10s
+                "standard:10": 150,
+                "standard:15": 270,
+                "high:10": 330,
+                "high:15": 630,
+                // Storyboard
+                "storyboard:standard:10": 150,
+                "storyboard:standard:15": 270,
+                "storyboard:standard:25": 270
+            }
         }
     },
     IMAGE: {
         DEFAULT: 5,
         MODELS: {
-            "nano-banana-pro": 5,
-            "z-image": 5,
+            "nano-banana-pro": {
+                default: 18,
+                "1k": 18,
+                "2k": 18,
+                "4k": 24
+            },
+            "z-image": {
+                default: 0.8,
+                "1": 0.8,
+                "2": 1.6,
+                "3": 2.4,
+                "4": 3.2
+            }
         }
     },
     PROMPT_ENHANCEMENT: 1 // Cost for enhancing prompts
 }
 
 /**
- * Fetch the dynamic usage costs from DB, falling back to default constants.
- */
-export async function getDynamicUsageCosts(): Promise<UsageCostsConfig> {
-    try {
-        const setting = await db.query.systemSettings.findFirst({
-            where: eq(systemSettings.key, "usage_costs"),
-        })
-
-        if (setting && setting.value) {
-            return setting.value as unknown as UsageCostsConfig
-        }
-    } catch (error) {
-        console.error("Failed to fetch dynamic usage costs, using defaults:", error)
-    }
-    return USAGE_COSTS
-}
-
-/**
- * Get the cost for a specific video model (Async).
+ * Get the cost for a specific video model.
  * Supports checking for specific capabilities (type, resolution, duration).
  */
 export async function getVideoCost(modelId?: string, options?: { type?: string, resolution?: string, duration?: string }): Promise<number> {
-    const costs = await getDynamicUsageCosts()
+    const costs = USAGE_COSTS
     const defaultCost = costs.VIDEO.DEFAULT
 
     if (!modelId) return defaultCost
@@ -139,57 +147,42 @@ export async function getVideoCost(modelId?: string, options?: { type?: string, 
         return undefined
     }
 
-    // 1. Try "type:resolution:duration"
-    if (type && resolution && duration) {
-        const val = tryKey(`${type}:${resolution}:${duration}`)
-        if (val !== undefined) return val
+    // 1. Try generic combined keys
+    const keysToTry = [
+        `${type}:${resolution}:${duration}`,
+        `${type}:${resolution}`,
+        `${resolution}:${duration}`,
+        `${type}:${duration}`,
+        type,
+        resolution,
+        duration
+    ]
+
+    for (const key of keysToTry) {
+        if (key) {
+            const val = tryKey(key)
+            if (val !== undefined) return val
+        }
     }
 
-    // 2. Try "resolution:duration"
-    if (resolution && duration) {
-        const val = tryKey(`${resolution}:${duration}`)
-        if (val !== undefined) return val
-    }
-
-    // 3. Try "type:resolution"
-    if (type && resolution) {
-        const val = tryKey(`${type}:${resolution}`)
-        if (val !== undefined) return val
-    }
-
-    // 4. Try "type"
-    if (type) {
-        const val = tryKey(type)
-        if (val !== undefined) return val
-    }
-
-    // 5. Try "resolution"
-    if (resolution) {
-        const val = tryKey(resolution)
-        if (val !== undefined) return val
-    }
-
-    // 6. Try "duration"
-    if (duration) {
-        const val = tryKey(duration)
-        if (val !== undefined) return val
-    }
-
-    // 7. Return default for this model
+    // Return default for this model
     return modelConfig.default ?? defaultCost
 }
 
 /**
- * Get the cost for a specific image model (Async).
+ * Get the cost for a specific image model.
  */
 export async function getImageCost(modelId?: string, options?: { type?: string, resolution?: string }): Promise<number> {
-    const costs = await getDynamicUsageCosts()
+    const costs = USAGE_COSTS
     const defaultCost = costs.IMAGE.DEFAULT
 
     if (!modelId) return defaultCost
 
     const modelConfig = costs.IMAGE.MODELS[modelId]
-    if (!modelConfig) return defaultCost
+    if (!modelConfig) {
+        console.warn(`[getImageCost] Model '${modelId}' not found in configuration. Available models:`, Object.keys(costs.IMAGE.MODELS))
+        return defaultCost
+    }
 
     if (typeof modelConfig === 'number') return modelConfig
 
@@ -207,9 +200,8 @@ export async function getImageCost(modelId?: string, options?: { type?: string, 
 }
 
 /**
- * Get the cost for prompt enhancement (Async).
+ * Get the cost for prompt enhancement.
  */
 export async function getPromptEnhancementCost(): Promise<number> {
-    const costs = await getDynamicUsageCosts()
-    return costs.PROMPT_ENHANCEMENT
+    return USAGE_COSTS.PROMPT_ENHANCEMENT
 }

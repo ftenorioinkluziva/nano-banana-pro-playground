@@ -46,10 +46,10 @@ export async function GET(request: NextRequest) {
       SELECT
         id,
         prompt,
-        negative_prompt,
+        NULL as negative_prompt, 
         mode,
         status,
-        video_uri,
+        NULL as video_uri, 
         video_url,
         task_id,
         resolution,
@@ -59,18 +59,24 @@ export async function GET(request: NextRequest) {
         error_message,
         created_at,
         updated_at
-      FROM videos
-      WHERE deleted_at IS NULL AND user_id = ${userId}
+      FROM generations
+      WHERE deleted_at IS NULL AND user_id = ${userId} AND type = 'VIDEO'
       ORDER BY created_at DESC
       LIMIT ${limit}
       OFFSET ${offset}
     `
+    console.log(`[GET /api/videos] Fetched ${videos.length} videos for user ${userId}`)
+    if (videos.length === 0) {
+      // Debug check: count ALL generations for user
+      const allGens = await sql`SELECT count(*) as count, type FROM generations WHERE user_id = ${userId} GROUP BY type`
+      console.log(`[GET /api/videos] Debug: User has generations:`, allGens)
+    }
 
     // Get total count for this user
     const countResult = await sql`
       SELECT COUNT(*) as total
-      FROM videos
-      WHERE deleted_at IS NULL AND user_id = ${userId}
+      FROM generations
+      WHERE deleted_at IS NULL AND user_id = ${userId} AND type = 'VIDEO'
     `
 
     const total = parseInt(countResult[0].total as string)

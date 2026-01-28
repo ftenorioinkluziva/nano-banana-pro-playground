@@ -3,6 +3,8 @@
  * Documentation: https://docs.kie.ai/veo3-api/generate-veo-3-video
  */
 
+import { fetchWithRetry } from "./fetch-with-retry"
+
 export interface KieAIGenerateParams {
   prompt: string
   imageUrls?: string[] // 1-2 image URLs for image-to-video
@@ -78,7 +80,7 @@ export class KieAIService {
    * Generate video using KIE.AI API
    */
   async generateVideo(params: KieAIGenerateParams): Promise<string> {
-    const response = await fetch(`${this.baseUrl}/veo/generate`, {
+    const response = await fetchWithRetry(`${this.baseUrl}/veo/generate`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -114,7 +116,7 @@ export class KieAIService {
    * Extend video using KIE.AI API
    */
   async extendVideo(params: KieAIExtendParams): Promise<string> {
-    const response = await fetch(`${this.baseUrl}/veo/extend`, {
+    const response = await fetchWithRetry(`${this.baseUrl}/veo/extend`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -147,7 +149,7 @@ export class KieAIService {
    * Check video generation status
    */
   async checkStatus(taskId: string): Promise<KieAIStatusResponse["data"]> {
-    const response = await fetch(`${this.baseUrl}/veo/record-info?taskId=${taskId}`, {
+    const response = await fetchWithRetry(`${this.baseUrl}/veo/record-info?taskId=${taskId}`, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
@@ -411,7 +413,7 @@ export class KieAIService {
 
     console.log("Job request:", JSON.stringify(requestBody, null, 2))
 
-    const response = await fetch(`${this.baseUrl}/jobs/createTask`, {
+    const response = await fetchWithRetry(`${this.baseUrl}/jobs/createTask`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -443,7 +445,7 @@ export class KieAIService {
     failMsg?: string
     failCode?: string
   }> {
-    const response = await fetch(`${this.baseUrl}/jobs/recordInfo?taskId=${taskId}`, {
+    const response = await fetchWithRetry(`${this.baseUrl}/jobs/recordInfo?taskId=${taskId}`, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
@@ -539,7 +541,7 @@ export class KieAIService {
    * Request 1080p Upscale
    */
   async get1080pVideo(params: { taskId: string; index?: number; callBackUrl?: string }): Promise<string> {
-    const response = await fetch(`${this.baseUrl}/veo/get-1080p-video`, {
+    const response = await fetchWithRetry(`${this.baseUrl}/veo/get-1080p-video`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -569,7 +571,7 @@ export class KieAIService {
    * Request 4K Upscale
    */
   async get4kVideo(params: { taskId: string; index?: number; callBackUrl?: string }): Promise<string> {
-    const response = await fetch(`${this.baseUrl}/veo/get-4k-video`, {
+    const response = await fetchWithRetry(`${this.baseUrl}/veo/get-4k-video`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

@@ -148,7 +148,7 @@ CRITICAL REQUIREMENTS:
   try {
     // Call Gemini with multimodal input
     const result = await generateText({
-      model: google("gemini-2.5-flash" as any),
+      model: google("gemini-1.5-flash"),
       system: SYSTEM_PROMPT,
       messages: [
         {
@@ -198,7 +198,7 @@ CRITICAL REQUIREMENTS:
       console.log("Retrying script generation...")
       try {
         const retryResult = await generateText({
-          model: google("gemini-2.5-flash" as any),
+          model: google("gemini-1.5-flash"),
           system: SYSTEM_PROMPT,
           messages: [
             {

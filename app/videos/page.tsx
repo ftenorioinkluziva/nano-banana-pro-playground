@@ -123,28 +123,8 @@ export default function VideosPage() {
       setCurrentVideo(generation)
       setAppState(AppStateEnum.SUCCESS)
 
-      // Save to database
-      try {
-        await fetch("/api/save-video", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            id: generationId,
-            prompt: params.prompt,
-            negativePrompt: params.negativePrompt,
-            mode: params.mode || "text-to-video",
-            videoUri: data.videoUri,
-            taskId: data.taskId,
-            resolution: params.resolution,
-            aspectRatio: params.aspectRatio,
-            duration: params.duration,
-            model: data.model,
-          }),
-        })
-        fetchVideoHistory()
-      } catch (saveError) {
-        console.error("Error saving video:", saveError)
-      }
+      // Video is already saved by the API
+      fetchVideoHistory()
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : t.generationFailed
       setError(errorMessage)

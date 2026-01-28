@@ -66,7 +66,7 @@ Generate ONLY the scene description, without any prefixes, explanations, or extr
     // Context: 1M tokens | Output: 65K tokens
     // Ideal for high-volume, fast text generation tasks
     const { text } = await generateText({
-      model: google("gemini-2.5-flash" as any),
+      model: google("gemini-1.5-flash"),
       prompt,
       temperature: 0.8,
       maxTokens: 200,

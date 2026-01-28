@@ -358,30 +358,8 @@ async function seed() {
 
   console.log(`  ✓ ${productCount} products inserted`)
 
+  /* Usage costs are now managed in code (lib/usage-costs.ts)
   console.log("  → Inserting system settings...")
-
-  const DEFAULT_USAGE_COSTS = {
-    VIDEO: {
-      DEFAULT: 50,
-      MODELS: {
-        "wan-2-6": 100,
-        "sora-2-pro": 100,
-        "veo": 50,
-        "veo-fast": 50,
-        "veo3": 60,
-        "veo3_fast": 40,
-      }
-    },
-    IMAGE: {
-      DEFAULT: 5,
-      MODELS: {
-        "nano-banana-pro": 5,
-        "z-image": 5,
-      }
-    },
-    PROMPT_ENHANCEMENT: 1
-  }
-
   await db.insert(systemSettings).values({
     key: 'usage_costs',
     value: DEFAULT_USAGE_COSTS,
@@ -394,6 +372,8 @@ async function seed() {
     }
   })
   console.log("  ✓ System settings checked/inserted")
+  */
+  console.log("  ✓ System settings skipped (managed in code)")
 
   console.log("✅ Seed completed!")
 }

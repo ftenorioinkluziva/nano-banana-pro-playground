@@ -21,7 +21,7 @@ export default async function AdminLayout({
                     <h1 className="text-lg font-semibold">Admin Dashboard</h1>
                     <nav className="flex gap-4 text-sm">
                         <a href="/admin/billing" className="hover:underline">Usage Logs</a>
-                        <a href="/admin/usage-costs" className="hover:underline">Usage Costs</a>
+
                         {/* Add more links here */}
                     </nav>
                 </div>

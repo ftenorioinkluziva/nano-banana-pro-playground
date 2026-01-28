@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/lib/auth-session"
 import { checkCredits, deductCredits, addCredits } from "@/lib/credits"
-
+import { fetchWithRetry } from "@/lib/fetch-with-retry"
 export const dynamic = "force-dynamic"
 
 const MAX_PROMPT_LENGTH = 10000
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData()
     const prompt = formData.get("prompt") as string
-    const model = (formData.get("model") as string) || "nano-banana-pro"
+    const model = (formData.get("model") as string)?.trim() || "nano-banana-pro"
     const aspectRatio = (formData.get("aspectRatio") as string) || "1:1"
     const resolution = (formData.get("resolution") as string) || "1K"
     const outputFormat = (formData.get("outputFormat") as string) || "PNG"
@@ -144,11 +144,33 @@ export async function POST(request: NextRequest) {
       resolution: resolution
     })
 
+    console.log("💰 Cost Calculation:", {
+      model,
+      mode,
+      resolution,
+      cost: IMAGE_COST,
+      hasImageInput
+    })
+
     // Check credits
-    const hasCredits = await checkCredits(user.id, IMAGE_COST)
-    if (!hasCredits) {
+    const { checkCredits } = await import("@/lib/credits")
+    const { db } = await import("@/db")
+    const { user: userTable } = await import("@/db/schema")
+    const { eq } = await import("drizzle-orm")
+
+    const userRecord = await db.query.user.findFirst({
+      where: eq(userTable.id, user.id),
+      columns: { credits: true },
+    })
+
+    const currentCredits = userRecord?.credits || 0
+
+    if (currentCredits < IMAGE_COST) {
       return NextResponse.json<ErrorResponse>(
-        { error: "Insufficient credits", details: `You need ${IMAGE_COST} credits to generate an image.` },
+        {
+          error: "Insufficient credits",
+          details: `You have ${currentCredits} credits, but this generation costs ${IMAGE_COST} credits. (Model: '${model}')`
+        },
         { status: 402 }
       )
     }
@@ -273,7 +295,7 @@ export async function POST(request: NextRequest) {
     console.log("Full request body:", JSON.stringify(kieRequestBody, null, 2).substring(0, 500))
 
     // Step 1: Create task
-    const createTaskResponse = await fetch(CREATE_TASK_ENDPOINT, {
+    const createTaskResponse = await fetchWithRetry(CREATE_TASK_ENDPOINT, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -326,6 +348,35 @@ export async function POST(request: NextRequest) {
     const taskId = createTaskData.data.taskId
     console.log("Task created successfully:", taskId)
 
+    // Generate ID for this generation
+    const generationId = crypto.randomUUID()
+    const { generations: generationsTable } = await import("@/db/schema")
+
+    // Step 1.5: Persist initial "loading" state to DB immediately
+    try {
+      await db.insert(generationsTable).values({
+        id: generationId,
+        userId: user.id,
+        prompt: prompt,
+        type: "IMAGE",
+        mode: imageInputUrls.length > 0 ? "image-editing" : "text-to-image",
+        model: model,
+        aspectRatio: aspectRatio,
+        status: "loading",
+        taskId: taskId,
+        cost: IMAGE_COST, // We record cost but deduct later? Or deduction happens at end?
+        // Logic below does deduction at end.
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      console.log(`Persisted initial generation record: ${generationId} (Task: ${taskId})`)
+    } catch (dbError) {
+      console.error("Failed to save initial generation record:", dbError)
+      // We continue even if save fails? No, better to fail fast or at least log heavily.
+      // If DB fails here, user might lose task if server crashes.
+      throw new Error("Failed to initialize generation record")
+    }
+
     // Step 2: Poll for status
     const maxPollingAttempts = 180 // 180 attempts * 2 seconds = 6 minutes max
     const pollingInterval = 10000 // 10 seconds
@@ -334,7 +385,7 @@ export async function POST(request: NextRequest) {
       // Wait before polling
       await new Promise((resolve) => setTimeout(resolve, pollingInterval))
 
-      const statusResponse = await fetch(`${QUERY_STATUS_ENDPOINT}?taskId=${taskId}`, {
+      const statusResponse = await fetchWithRetry(`${QUERY_STATUS_ENDPOINT}?taskId=${taskId}`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${apiKey}`,
@@ -375,6 +426,16 @@ export async function POST(request: NextRequest) {
 
         if (!resultUrls || resultUrls.length === 0) {
           console.error("Task succeeded but no URLs found. resultData:", resultData)
+
+          // Mark as error in DB
+          await db.update(generationsTable)
+            .set({
+              status: "error",
+              errorMessage: "No images generated",
+              updatedAt: new Date()
+            })
+            .where(eq(generationsTable.id, generationId))
+
           throw new Error("No images generated")
         }
 
@@ -383,18 +444,34 @@ export async function POST(request: NextRequest) {
         // Determine generation mode based on whether images were provided
         const mode: "text-to-image" | "image-editing" = imageInputUrls.length > 0 ? "image-editing" : "text-to-image"
 
-        // Generate unique ID for this generation
-        const generationId = crypto.randomUUID()
-
         // Initial deduction of estimated cost
-        const deductionSuccess = await deductCredits(user.id, IMAGE_COST, `Image Generation: ${model}`)
-
-        if (!deductionSuccess) {
-          console.error("Failed to deduct credits after generation!")
+        let deductionSuccess = false
+        try {
+          deductionSuccess = await deductCredits(user.id, IMAGE_COST, `Image Generation: ${model}`)
+          if (!deductionSuccess) {
+            console.error("Failed to deduct credits (insufficient funds logic despite initial check). Cost:", IMAGE_COST)
+          }
+        } catch (creditError) {
+          console.error("CRITICAL: Error deducting credits AFTER generation. User got free generation.", creditError)
         }
 
-        // Use estimated cost as final cost
         const finalCost = IMAGE_COST
+
+        // Update DB record to complete
+        try {
+          await db.update(generationsTable)
+            .set({
+              status: "complete",
+              imageUrl: resultUrls[0],
+              imageUrls: resultUrls,
+              cost: finalCost,
+              updatedAt: new Date()
+            })
+            .where(eq(generationsTable.id, generationId))
+          console.log(`Updated generation record to complete: ${generationId}`)
+        } catch (updateError) {
+          console.error("Failed to update generation record to complete:", updateError)
+        }
 
         return NextResponse.json<GenerateImageResponse>({
           id: generationId,
@@ -412,6 +489,15 @@ export async function POST(request: NextRequest) {
 
       if (state === "fail") {
         const errorMessage = statusData.data?.failMsg || "Task failed"
+        // Mark as error in DB
+        await db.update(generationsTable)
+          .set({
+            status: "error",
+            errorMessage: errorMessage,
+            updatedAt: new Date()
+          })
+          .where(eq(generationsTable.id, generationId))
+
         throw new Error(errorMessage)
       }
 

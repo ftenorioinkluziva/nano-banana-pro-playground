@@ -44,7 +44,7 @@ export function NavigationBar() {
 
   // Add admin link if user calls "admin"
   if (session?.user?.role === "admin") {
-    links.push({ href: "/admin/usage-costs", label: "Admin" })
+    // links.push({ href: "/admin/usage-costs", label: "Admin" })
   }
 
   const handleSignOut = async () => {
@@ -115,7 +115,7 @@ export function NavigationBar() {
               <div className="hidden sm:flex items-center gap-2 bg-zinc-900/50 border border-zinc-700 rounded-full px-3 py-1">
                 <Zap className="h-3 w-3 text-yellow-400 fill-yellow-400" />
                 <span className="text-xs font-medium text-white">
-                  {isLoadingCredits ? "..." : credits ?? 0}
+                  {isLoadingCredits ? "..." : (credits ?? 0).toFixed(2)}
                 </span>
               </div>
             )}
@@ -165,7 +165,7 @@ export function NavigationBar() {
                   <DropdownMenuItem className="focus:bg-zinc-800 focus:text-white cursor-pointer">
                     <div className="flex justify-between items-center w-full">
                       <span>Credits</span>
-                      <span className="font-mono text-zinc-400">{credits ?? 0}</span>
+                      <span className="font-mono text-zinc-400">{(credits ?? 0).toFixed(2)}</span>
                     </div>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator className="bg-zinc-800" />

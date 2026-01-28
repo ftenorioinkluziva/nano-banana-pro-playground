@@ -91,7 +91,7 @@ export default function BillingClient() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-4xl font-bold mb-4">
-                            {isLoading ? "..." : credits ?? 0}
+                            {isLoading ? "..." : (credits ?? 0).toFixed(2)}
                         </div>
                         <p className="text-sm text-zinc-400 mb-6">
                             ~ {credits ? Math.floor(credits / 5) : 0} Images or {credits ? Math.floor(credits / 50) : 0} Videos
@@ -166,7 +166,7 @@ export default function BillingClient() {
                                             "text-right font-mono",
                                             tx.amount > 0 ? "text-green-400" : "text-red-400"
                                         )}>
-                                            {tx.amount > 0 ? "+" : ""}{tx.amount}
+                                            {tx.amount > 0 ? "+" : ""}{tx.amount.toFixed(2)}
                                         </TableCell>
                                     </TableRow>
                                 ))

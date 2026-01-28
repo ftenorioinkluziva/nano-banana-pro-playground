@@ -35,7 +35,7 @@ export async function DELETE(request: NextRequest) {
 
     // Soft delete by setting deleted_at timestamp, but only if owned by user
     const result = await sql`
-      UPDATE videos
+      UPDATE generations
       SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
       WHERE id = ${videoId}
       AND user_id = ${userId}

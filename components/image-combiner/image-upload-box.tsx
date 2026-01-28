@@ -77,8 +77,8 @@ export function ImageUploadBox({ imageNumber, preview, onDrop, onClear, onSelect
               d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
             />
           </svg>
-          <p className="text-xs">{imageNumber === 1 ? t.uploadImage : t.secondImage}</p>
-          <p className="text-[10px] text-gray-500 mt-0.5 hidden lg:block">{t.dragAndDrop}</p>
+          <p className="text-xs" suppressHydrationWarning>{imageNumber === 1 ? t.uploadImage : t.secondImage}</p>
+          <p className="text-[10px] text-gray-500 mt-0.5 hidden lg:block" suppressHydrationWarning>{t.dragAndDrop}</p>
         </div>
       )}
     </div>

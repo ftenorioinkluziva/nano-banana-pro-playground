@@ -12,6 +12,8 @@ interface Product {
   name: string
   image_url: string | null
   description: string | null
+  brand_id: number | null
+  brand_name: string | null
 }
 
 interface ScriptFormProps {
@@ -26,6 +28,7 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 export function ScriptForm({ onScriptGenerated, isGenerating, setIsGenerating, disabled }: ScriptFormProps) {
   const { t } = useLanguage()
   const [products, setProducts] = useState<Product[]>([])
+  const [selectedBrandId, setSelectedBrandId] = useState<string>("")
   const [selectedProductId, setSelectedProductId] = useState<string>("")
   const [personaImage, setPersonaImage] = useState<File | null>(null)
   const [personaPreview, setPersonaPreview] = useState<string | null>(null)
@@ -50,6 +53,22 @@ export function ScriptForm({ onScriptGenerated, isGenerating, setIsGenerating, d
     }
     fetchProducts()
   }, [t.errorLoadingProducts])
+
+  // Get unique brands from products
+  const brands = Array.from(new Set(products.map(p => p.brand_id).filter(id => id !== null)))
+    .map(id => {
+      const product = products.find(p => p.brand_id === id)
+      return {
+        id: id!.toString(),
+        name: product?.brand_name || "Unknown Brand"
+      }
+    })
+    .sort((a, b) => a.name.localeCompare(b.name))
+
+  // Filter products by selected brand
+  const filteredProducts = products.filter(p =>
+    selectedBrandId ? p.brand_id?.toString() === selectedBrandId : false
+  )
 
   const processFile = (file: File) => {
     if (file.size > MAX_FILE_SIZE) {
@@ -115,7 +134,7 @@ export function ScriptForm({ onScriptGenerated, isGenerating, setIsGenerating, d
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
+    // ... same submit logic
     if (!canGenerate) return
 
     setIsGenerating(true)
@@ -158,17 +177,47 @@ export function ScriptForm({ onScriptGenerated, isGenerating, setIsGenerating, d
           <p className="text-sm text-gray-400">{t.fillFormForScript}</p>
         </div>
 
+        {/* Brand Selector */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-300 block">
+            {t.brand} <span className="text-red-500">*</span>
+          </label>
+          <Select
+            value={selectedBrandId}
+            onValueChange={(val) => {
+              setSelectedBrandId(val)
+              setSelectedProductId("") // Reset product when brand changes
+            }}
+            disabled={disabled}
+          >
+            <SelectTrigger className="w-full h-12 bg-black/50 border-gray-600 text-white">
+              <SelectValue placeholder={t.selectBrand} />
+            </SelectTrigger>
+            <SelectContent className="bg-black border-gray-600">
+              {brands.map((brand) => (
+                <SelectItem key={brand.id} value={brand.id} className="text-white">
+                  {brand.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         {/* Product Selector */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-300 block">
             {t.products} <span className="text-red-500">*</span>
           </label>
-          <Select value={selectedProductId} onValueChange={setSelectedProductId} disabled={disabled}>
+          <Select
+            value={selectedProductId}
+            onValueChange={setSelectedProductId}
+            disabled={disabled || !selectedBrandId}
+          >
             <SelectTrigger className="w-full h-12 bg-black/50 border-gray-600 text-white">
-              <SelectValue placeholder={t.selectBrand} />
+              <SelectValue placeholder={selectedBrandId ? t.selectAProduct : t.selectBrand} />
             </SelectTrigger>
             <SelectContent className="bg-black border-gray-600">
-              {products.map((product) => (
+              {filteredProducts.map((product) => (
                 <SelectItem key={product.id} value={product.id.toString()} className="text-white">
                   <div className="flex items-center gap-2">
                     {product.image_url && (
@@ -196,8 +245,8 @@ export function ScriptForm({ onScriptGenerated, isGenerating, setIsGenerating, d
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${isDragging
-                  ? "border-white bg-white/10"
-                  : "border-gray-600 hover:border-gray-500"
+                ? "border-white bg-white/10"
+                : "border-gray-600 hover:border-gray-500"
                 } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               <svg

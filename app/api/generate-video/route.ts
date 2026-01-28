@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
   try {
     // Require authentication
     // Require authentication
-    const user = await requireAuth()
+    const { user } = await requireAuth()
 
     const kieApiKey = process.env.KIEAI_API_KEY
 
@@ -140,10 +140,24 @@ export async function POST(request: NextRequest) {
     })
 
     // Check credits
-    const hasCredits = await checkCredits(user.id, VIDEO_COST)
-    if (!hasCredits) {
+    const { checkCredits } = await import("@/lib/credits")
+    const { db } = await import("@/db")
+    const { user: userTable, generations } = await import("@/db/schema")
+    const { eq } = await import("drizzle-orm")
+
+    const userRecord = await db.query.user.findFirst({
+      where: eq(userTable.id, user.id),
+      columns: { credits: true },
+    })
+
+    const currentCredits = userRecord?.credits || 0
+
+    if (currentCredits < VIDEO_COST) {
       return NextResponse.json<ErrorResponse>(
-        { error: "Insufficient credits", details: `You need ${VIDEO_COST} credits to generate a video with ${selectedModel || 'this model'}.` },
+        {
+          error: "Insufficient credits",
+          details: `You have ${currentCredits} credits, but this generation costs ${VIDEO_COST} credits.`
+        },
         { status: 402 }
       )
     }
@@ -339,6 +353,45 @@ export async function POST(request: NextRequest) {
 
     // Deduct credits
     await deductCredits(user.id, VIDEO_COST, `Video Generation: ${isParametrized ? modelId : legacyModel}`)
+
+    // Save to history
+    try {
+      let dbMode = "Text to Video"
+      if (effectiveMode === "text-to-video") dbMode = "Text to Video"
+      else if (effectiveMode === "frames-to-video") dbMode = "Frames to Video"
+      else if (effectiveMode === "references-to-video") dbMode = "References to Video"
+      else if (effectiveMode === "extend-video") dbMode = "Extend Video"
+      else if (["Text to Video", "Frames to Video", "References to Video", "Extend Video"].includes(effectiveMode)) {
+        dbMode = effectiveMode
+      }
+
+      // Map duration to allowed enum values (4s, 6s, 8s) or default to 6s
+      let dbDuration = "6s"
+      const durVal = duration?.replace("s", "")
+      if (durVal === "4") dbDuration = "4s"
+      else if (durVal === "8") dbDuration = "8s"
+      else if (durVal === "5") dbDuration = "6s" // Map 5s (Wan) to 6s to satisfy Enum
+      else if (durVal === "10") dbDuration = "8s" // Map long to 8s max enum
+
+      await db.insert(generations).values({
+        id: crypto.randomUUID(),
+        userId: user.id,
+        prompt: prompt || "",
+        mode: dbMode as any,
+        type: "VIDEO",
+        status: "complete",
+        videoUrl: result.videoUrl,
+        resolution: (resolution as any) || "720p",
+        aspectRatio: (aspectRatio as any) || "16:9",
+        duration: dbDuration,
+        model: isParametrized ? modelId : legacyModel,
+        taskId: result.taskId,
+        description: `Video Generation: ${isParametrized ? modelId : legacyModel}`,
+        cost: VIDEO_COST,
+      })
+    } catch (historyError) {
+      console.error("Failed to save video history:", historyError)
+    }
 
     return response
 

@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json<ErrorResponse>({ error: "Insufficient credits" }, { status: 402 })
     }
 
-    const model = google("gemini-2.5-flash" as any, {
+    const model = google("gemini-1.5-flash", {
       apiKey: apiKey,
     })
 

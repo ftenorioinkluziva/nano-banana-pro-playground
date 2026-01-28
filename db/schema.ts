@@ -10,6 +10,7 @@ import {
   jsonb,
   index,
   unique,
+  doublePrecision,
 } from "drizzle-orm/pg-core"
 import { relations } from "drizzle-orm"
 
@@ -22,6 +23,11 @@ export const userRoleEnum = pgEnum("user_role", ["admin", "creator", "viewer"])
 export const generationModeEnum = pgEnum("generation_mode", [
   "text-to-image",
   "image-editing",
+])
+
+export const generationContentTypeEnum = pgEnum("generation_content_type", [
+  "IMAGE",
+  "VIDEO",
 ])
 
 export const generationStatusEnum = pgEnum("generation_status", [
@@ -85,7 +91,7 @@ export const user = pgTable("user", {
   emailVerified: boolean("emailVerified").notNull().default(false),
   image: text("image"),
   role: userRoleEnum("role").notNull().default("creator"),
-  credits: integer("credits").notNull().default(10),
+  credits: doublePrecision("credits").notNull().default(10),
   stripeCustomerId: text("stripe_customer_id").unique(),
   onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
@@ -145,16 +151,21 @@ export const generations = pgTable(
   {
     id: text("id").primaryKey(),
     userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+    type: generationContentTypeEnum("type").notNull().default("IMAGE"),
     prompt: text("prompt").notNull(),
     enhancedPrompt: text("enhanced_prompt"),
-    mode: generationModeEnum("mode").notNull(),
+    mode: text("mode").notNull(),
     status: generationStatusEnum("status").notNull().default("complete"),
     imageUrl: text("image_url"),
     imageUrls: text("image_urls").array(),
+    videoUrl: text("video_url"),
     aspectRatio: text("aspect_ratio").default("1:1"),
+    duration: text("duration"),
+    resolution: text("resolution"),
     model: text("model").default("nano-banana-pro"),
     description: text("description"),
-    cost: integer("cost"),
+    cost: doublePrecision("cost"),
+    taskId: text("task_id").unique(),
     errorMessage: text("error_message"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
@@ -343,7 +354,7 @@ export const transactions = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    amount: integer("amount").notNull(), // Positive for add, negative for spend
+    amount: doublePrecision("amount").notNull(), // Positive for add, negative for spend
     type: transactionTypeEnum("type").notNull(),
     description: text("description").notNull(),
     stripePaymentId: text("stripe_payment_id"),

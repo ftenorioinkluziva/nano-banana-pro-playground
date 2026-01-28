@@ -101,7 +101,7 @@ export function OutputSection({
               <span className="hidden sm:inline">{t.useAsInput}</span>
             </Button>
           </TooltipTrigger>
-          <TooltipContent className="bg-zinc-950 border-zinc-800 text-white text-xs">
+          <TooltipContent className="bg-zinc-950 border-zinc-800 text-white text-xs sm:hidden">
             {t.useAsInput}
           </TooltipContent>
         </Tooltip>
@@ -119,7 +119,7 @@ export function OutputSection({
               <span className="hidden sm:inline">{t.copy}</span>
             </Button>
           </TooltipTrigger>
-          <TooltipContent className="bg-zinc-950 border-zinc-800 text-white text-xs">
+          <TooltipContent className="bg-zinc-950 border-zinc-800 text-white text-xs sm:hidden">
             {t.copy}
           </TooltipContent>
         </Tooltip>
@@ -137,7 +137,7 @@ export function OutputSection({
               <span className="hidden sm:inline">{t.download}</span>
             </Button>
           </TooltipTrigger>
-          <TooltipContent className="bg-zinc-950 border-zinc-800 text-white text-xs">
+          <TooltipContent className="bg-zinc-950 border-zinc-800 text-white text-xs sm:hidden">
             {t.download}
           </TooltipContent>
         </Tooltip>

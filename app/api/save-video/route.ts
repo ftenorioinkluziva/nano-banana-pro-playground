@@ -58,14 +58,14 @@ export async function POST(request: NextRequest) {
 
     // 3. SAVE TO DATABASE WITH USER_ID
     const result = await sql`
-      INSERT INTO videos (
+      INSERT INTO generations (
         id,
         user_id,
         prompt,
-        negative_prompt,
+        type, 
         mode,
         status,
-        video_uri,
+        video_url, 
         task_id,
         resolution,
         aspect_ratio,
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
         ${id},
         ${userId},
         ${prompt},
-        ${negativePrompt || null},
+        'VIDEO',
         ${mode},
         'complete',
         ${videoUri},

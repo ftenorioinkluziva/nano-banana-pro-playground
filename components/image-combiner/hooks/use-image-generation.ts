@@ -25,6 +25,7 @@ interface UseImageGenerationProps {
   setUseUrls: (use: boolean) => void
   onUrlChange: (url: string, slot: 1 | 2) => void
   t: Record<string, string>
+  userCredits: number | null
 }
 
 interface GenerateImageOptions {
@@ -80,6 +81,7 @@ export function useImageGeneration({
   setUseUrls,
   onUrlChange,
   t,
+  userCredits,
 }: UseImageGenerationProps) {
   const [selectedGenerationId, setSelectedGenerationId] = useState<string | null>(null)
   const [imageLoaded, setImageLoaded] = useState(false)
@@ -114,6 +116,21 @@ export function useImageGeneration({
     if (!effectivePrompt.trim()) {
       onToast("Please enter a prompt", "error")
       return
+    }
+
+    // Client-side credit check
+    if (userCredits !== null) {
+      let estimatedCost = 0
+      if (model === "nano-banana-pro") {
+        estimatedCost = resolution === "4K" ? 24 : 18
+      } else if (model === "z-image") {
+        estimatedCost = 0.8
+      }
+
+      if (userCredits < estimatedCost) {
+        onToast(`Insufficient credits: You have ${userCredits} credits, but this generation costs ${estimatedCost} credits.`, "error")
+        return
+      }
     }
 
     const numVariations = 1

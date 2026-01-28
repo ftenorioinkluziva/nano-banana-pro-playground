@@ -3,7 +3,10 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import type { Generation } from "../types"
 
-export function useDatabaseHistory(onToast?: (message: string, type: "success" | "error") => void) {
+export function useDatabaseHistory(
+  onToast?: (message: string, type: "success" | "error") => void,
+  limit: number = -1 // Default to "no limit" (-1)
+) {
   const [generations, setGenerations] = useState<Generation[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSyncing, setIsSyncing] = useState(false)
@@ -26,7 +29,7 @@ export function useDatabaseHistory(onToast?: (message: string, type: "success" |
   const loadGenerations = useCallback(async () => {
     setIsLoading(true)
     try {
-      const response = await fetch("/api/get-generations?limit=50")
+      const response = await fetch(`/api/get-generations?limit=${limit}`)
       if (response.ok) {
         const data = await response.json()
         if (isMountedRef.current) {

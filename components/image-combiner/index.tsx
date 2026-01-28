@@ -19,10 +19,12 @@ import { FullscreenViewer } from "./fullscreen-viewer"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ApiKeyWarning } from "@/components/api-key-warning"
 import { useLanguage } from "@/components/language-provider"
+import { useCredits } from "@/hooks/use-credits"
 
 export function ImageCombiner() {
   const isMobile = useMobile()
   const { language, t } = useLanguage()
+  const { credits: userCredits, refreshCredits } = useCredits() // Use shared hook
   const [prompt, setPrompt] = useState("")
   const [model, setModel] = useState<"nano-banana-pro" | "z-image">("nano-banana-pro")
   const [resolution, setResolution] = useState<"1K" | "2K" | "4K">("2K")
@@ -118,13 +120,17 @@ export function ImageCombiner() {
     useUrls,
     generations: persistedGenerations,
     setGenerations: setPersistedGenerations,
-    addGeneration,
+    addGeneration: async (gen) => {
+      await addGeneration(gen)
+      refreshCredits()
+    },
     onToast: showToast,
     onImageUpload: handleImageUpload,
     onApiKeyMissing: () => setApiKeyMissing(true),
     setUseUrls,
     onUrlChange: handleUrlChange,
     t,
+    userCredits,
   })
 
   const selectedGeneration = persistedGenerations.find((g) => g.id === selectedGenerationId) || persistedGenerations[0]

@@ -27,14 +27,22 @@ export async function deductCredits(
     // Check balance logic (optimistic check, real check happens in update)
     // Note: Without robust transactions, we rely on the condition in the UPDATE clause
 
+    // Force amount to be a number just in case
+    const deductAmount = typeof amount === 'string' ? parseFloat(amount) : amount
+
     // Attempt to deduct credits only if sufficient balance exists
     const [updatedUser] = await db
         .update(user)
         .set({
-            credits: sql`${user.credits} - ${amount}`,
+            credits: sql`${user.credits} - ${deductAmount}::double precision`,
             updatedAt: new Date(),
         })
-        .where(and(eq(user.id, userId), gte(user.credits, amount)))
+        .where(
+            and(
+                eq(user.id, userId),
+                sql`${user.credits} >= ${deductAmount}::double precision`
+            )
+        )
         .returning({ id: user.id })
 
     if (!updatedUser) {
@@ -67,7 +75,7 @@ export async function addCredits(
     await db
         .update(user)
         .set({
-            credits: sql`${user.credits} + ${amount}`,
+            credits: sql`${user.credits} + ${amount}::double precision`,
             updatedAt: new Date(),
         })
         .where(eq(user.id, userId))
