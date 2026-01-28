@@ -30,7 +30,8 @@ export async function middleware(request: NextRequest) {
   }
 
   // Get session from cookie
-  const sessionToken = request.cookies.get("better-auth.session_token")
+  const sessionToken = request.cookies.get("better-auth.session_token") ||
+    request.cookies.get("__Secure-better-auth.session_token")
 
   // If no session and not on auth page, redirect to login
   if (!sessionToken && !isAuthRoute) {
