@@ -58,7 +58,11 @@
       "Bash(npx tsc:*)",
       "Bash(npx drizzle-kit:*)",
       "Bash(pnpm db:reset:*)",
-      "Bash(pnpm db:seed:*)"
+      "Bash(pnpm db:seed:*)",
+      "Bash(pnpm db:generate:*)",
+      "Bash(pnpm db:migrate:*)",
+      "Bash(pnpm db:push:*)",
+      "mcp__ide__getDiagnostics"
     ]
   }
 }
