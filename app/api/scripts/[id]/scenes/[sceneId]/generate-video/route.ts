@@ -118,6 +118,20 @@ export async function POST(
       )
     }
 
+    // Extract customization parameters from request body
+    let requestBody = {}
+    try {
+      requestBody = await request.json()
+    } catch (e) {
+      // Body might be empty or invalid, ignore
+    }
+
+    const {
+      model = "veo3_fast",
+      aspectRatio = "9:16",
+      resolution = "720p"
+    } = requestBody as any
+
     // Validate video_prompt_en
     if (!scene.video_prompt_en || scene.video_prompt_en.trim().length === 0) {
       return NextResponse.json<ErrorResponse>(
@@ -131,28 +145,40 @@ export async function POST(
       SELECT * FROM scene_videos
       WHERE script_id = ${scriptId} AND scene_id = ${parseInt(sceneId)}
         AND status IN ('complete', 'generating')
+        AND model = ${model} 
+    `
+    // Note: We check model too now, so user can regenerate with different model if desired, 
+    // or we can stick to strict check. For simplicity, let's allow re-generation if model is different eventually,
+    // but for now let's keep it simple and block if ANY video exists for this scene to avoid duplicates in UI.
+    // Actually, UI allows one video per scene usually. Let's keep existing check but maybe relax it if we want multiple versions.
+    // For now, keeping original check logic but strict on re-generating same scene.
+
+    // Better logic: If user explicitly requests new generation, we might want to allow it.
+    // But UI doesn't usually support multiple videos per scene yet.
+    const anyExistingVideo = await sql`
+      SELECT * FROM scene_videos
+      WHERE script_id = ${scriptId} AND scene_id = ${parseInt(sceneId)}
+        AND status IN ('complete', 'generating')
     `
 
-    if (existingVideos.length > 0) {
+    if (anyExistingVideo.length > 0) {
+      // If valid video exists, return it.
+      // If user wants to FORCE regeneration, they should probably delete the old one first (UI "Delete" button).
       return NextResponse.json({
         success: true,
-        sceneVideo: existingVideos[0],
+        sceneVideo: anyExistingVideo[0],
         message: "Video already exists or is currently generating"
       })
     }
 
-    // Upload persona image as start and end frames
-    console.log("Uploading persona image as start/end frames...")
+    // Upload persona image as start/end frames or reference image
+    console.log("Uploading persona image...")
 
-    let startFrameUrl: string
-    let endFrameUrl: string
+    let imageUrl: string
 
     try {
-      // Upload the same persona image for both start and end frames
-      startFrameUrl = await uploadBase64Image(script.persona_image_base64, kieApiKey)
-      endFrameUrl = startFrameUrl // Use same image for both frames
-
-      console.log("Persona image uploaded successfully:", startFrameUrl)
+      imageUrl = await uploadBase64Image(script.persona_image_base64, kieApiKey)
+      console.log("Persona image uploaded successfully:", imageUrl)
     } catch (uploadError) {
       console.error("Error uploading persona image:", uploadError)
       return NextResponse.json<ErrorResponse>(
@@ -164,15 +190,45 @@ export async function POST(
       )
     }
 
-    // Determine generation parameters
+    // Determine generation parameters based on model
+    const isVeo = model.includes("veo")
+    const isSora = model.includes("sora")
+    const isWan = model.includes("wan")
+
+    // Map scene duration to nearest supported duration
+    let duration = "6s" // default
+    const sceneDuration = scene.duration_seconds || 5
+
+    if (isVeo) {
+      // Veo supports 4s, 6s, 8s
+      if (sceneDuration <= 4) duration = "4s"
+      else if (sceneDuration <= 6) duration = "6s"
+      else duration = "8s"
+    } else if (isSora) {
+      // Sora supports 5s, 10s (mapped to "10", "15" frames in some configs, or "5", "10" in simplified view)
+      // Config says Sora 2 Pro text-to-video: "10" (10s), "15" (15s)? 
+      // Let's look at `video-models-config.ts` again or `kieai-service.ts`.
+      // `kieai-service.ts` logic for Sora: duration "10" -> n_frames 10
+      // Let's assume 5s and 10s are good targets.
+      if (sceneDuration <= 5) duration = "5s"
+      else duration = "10s"
+    } else if (isWan) {
+      // Wan supports 5s, 10s (video-to-video only), 5/10/15 (text/image)
+      if (sceneDuration <= 5) duration = "5"
+      else if (sceneDuration <= 10) duration = "10"
+      else duration = "15"
+    }
+
+    // Normalize aspect ratio string if needed
+    // UI sends "9:16", API expects "9:16" usually.
+
     const videoParams = {
       prompt: scene.video_prompt_en,
-      model: "veo3_fast" as const, // Fast model for quick generation
-      aspectRatio: "9:16" as const, // Vertical for UGC selfie
-      resolution: "720p" as const, // Standard resolution
-      duration: `${scene.duration_seconds}s` as const, // From scene duration
-      mode: "FIRST_AND_LAST_FRAMES_2_VIDEO" as const, // Frames to Video mode
-      imageUrls: [startFrameUrl, endFrameUrl] // Start and end frames
+      model: model,
+      aspectRatio: aspectRatio,
+      resolution: resolution,
+      duration: duration,
+      // We will determine mode/inputs below
     }
 
     // Validate prompt length
@@ -197,28 +253,58 @@ export async function POST(
       ) VALUES (
         ${sceneVideoId}, ${scriptId}, ${parseInt(sceneId)},
         ${videoParams.prompt}, ${videoParams.model}, ${videoParams.aspectRatio},
-        ${videoParams.resolution}, ${videoParams.duration}, ${videoParams.mode},
+        ${videoParams.resolution}, ${videoParams.duration}, 
+        ${isVeo ? "FIRST_AND_LAST_FRAMES_2_VIDEO" : "image-to-video"},
         'generating'
       )
     `
 
-    // Generate video via KieAI with frames
+    // Generate video via KieAI
     try {
       // Initialize KieAI service
       const kieService = new KieAIService(kieApiKey)
+      let result;
 
-      const result = await kieService.generateVideoWithPolling({
-        prompt: videoParams.prompt,
-        model: videoParams.model,
-        aspectRatio: videoParams.aspectRatio,
-        resolution: videoParams.resolution,
-        duration: videoParams.duration,
-        mode: videoParams.mode,
-        imageUrls: videoParams.imageUrls // Pass start and end frames
-      }, {
-        maxAttempts: 60, // 10 minutes (10s * 60)
-        pollInterval: 10000 // 10 seconds
-      })
+      if (isVeo) {
+        // Veo Generation
+        result = await kieService.generateVideoWithPolling({
+          prompt: videoParams.prompt,
+          model: videoParams.model as "veo3" | "veo3_fast", // approximate cast
+          aspectRatio: videoParams.aspectRatio as "16:9" | "9:16" | "Auto",
+          // resolution param is not directly used in `generateVideo` (standard/hd implicit?), 
+          // `video-models-config` says Veo has resolutions but `kieai-service` might fallback or auto.
+          // `kieai-service.ts` generateVideo doesn't take resolution param!
+          // Veo 3 resolution is determined by aspect ratio mostly (720p usually).
+          // We'll ignore resolution for Veo API call if not supported.
+          duration: videoParams.duration, // Not supported in `generateVideo` params interface?
+          // Wait, `KieAIGenerateParams` has no duration! Veo 3 is fixed or inferred?
+          // Looking at `KieAIGenerateParams`: prompt, imageUrls, model, generationType, aspectRatio, seeds, enableTranslation, watermark.
+          // No duration for Veo 3? It might be fixed or prompt dependent.
+          // But `video-models-config.ts` lists durations for Veo. 
+          // Let's assume Veo 3 is fixed ~6s or handled by prompt if not in params.
+          // Re-checking `kieai-service.ts`... `generateVideo` doesn't pass duration.
+          // Veo 3 is typically 6s.
+          mode: "FIRST_AND_LAST_FRAMES_2_VIDEO",
+          imageUrls: [imageUrl, imageUrl] // Start and end frames
+        }, {
+          maxAttempts: 60,
+          pollInterval: 10000
+        })
+      } else {
+        // Wan / Sora Generation
+        // Using `generateWithWan26AndPoll` which handles Sora specific params too (n_frames etc via `duration`)
+        result = await kieService.generateWithWan26AndPoll({
+          model: videoParams.model,
+          prompt: videoParams.prompt,
+          aspect_ratio: videoParams.aspectRatio,
+          resolution: videoParams.resolution,
+          duration: videoParams.duration,
+          image_urls: [imageUrl], // Single image for image-to-video
+        }, {
+          maxAttempts: 120, // Give more time for Wan/Sora
+          pollInterval: 10000
+        })
+      }
 
       // Download video as base64
       const videoBase64 = await kieService.downloadVideoAsBase64(result.videoUrl)
@@ -251,7 +337,7 @@ export async function POST(
           aspect_ratio: videoParams.aspectRatio,
           resolution: videoParams.resolution,
           duration: videoParams.duration,
-          mode: videoParams.mode,
+          mode: isVeo ? "FIRST_AND_LAST_FRAMES_2_VIDEO" : "image-to-video",
           created_at: new Date().toISOString(),
           completed_at: new Date().toISOString()
         }

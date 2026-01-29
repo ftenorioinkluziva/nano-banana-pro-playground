@@ -7,6 +7,10 @@ import { Card } from "@/components/ui/card"
 import { toast } from "sonner"
 import type { ScriptOutput, ScriptScene } from "@/lib/agents/script-generator"
 import { useLanguage } from "@/components/language-provider"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Settings2, RefreshCw } from "lucide-react"
+import { AVAILABLE_MODELS } from "@/lib/video-models-config"
 
 interface SceneVideo {
   id: string
@@ -17,6 +21,9 @@ interface SceneVideo {
   task_id?: string
   created_at: string
   completed_at?: string
+  model?: string
+  aspect_ratio?: string
+  resolution?: string
 }
 
 interface ScriptViewerProps {
@@ -40,6 +47,13 @@ export function ScriptViewer({ script, scriptId, onScriptChange }: ScriptViewerP
   const [hasChanges, setHasChanges] = useState(false)
   const [sceneVideos, setSceneVideos] = useState<Map<number, SceneVideo>>(new Map())
   const [generatingScenes, setGeneratingScenes] = useState<Set<number>>(new Set())
+
+  // Video Generation Settings State
+  const [videoSettings, setVideoSettings] = useState({
+    modelId: "veo3_fast", // Default to Veo Fast
+    aspectRatio: "9:16",
+    resolution: "720p"
+  })
 
   // Fetch existing videos for this script
   useEffect(() => {
@@ -119,7 +133,15 @@ export function ScriptViewer({ script, scriptId, onScriptChange }: ScriptViewerP
     try {
       const response = await fetch(
         `/api/scripts/${scriptId}/scenes/${sceneId}/generate-video`,
-        { method: "POST" }
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: videoSettings.modelId,
+            aspectRatio: videoSettings.aspectRatio,
+            resolution: videoSettings.resolution
+          })
+        }
       )
 
       if (!response.ok) {
@@ -196,6 +218,79 @@ export function ScriptViewer({ script, scriptId, onScriptChange }: ScriptViewerP
 
   return (
     <div className="space-y-6">
+      {/* Header with Settings */}
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-white">{editedScript.product_name}</h2>
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="gap-2 border-purple-500/50 hover:bg-purple-500/10 text-purple-200">
+              <Settings2 className="w-4 h-4" />
+              Configurações de Vídeo
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80 bg-black/90 border-gray-700 text-white p-4">
+            <div className="space-y-4">
+              <h4 className="font-medium leading-none mb-2">Configurações de Geração</h4>
+              <p className="text-xs text-gray-400 mb-4">Essas configurações serão aplicadas a todas as novas gerações de cena.</p>
+
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-gray-300">Modelo de Vídeo</label>
+                <Select
+                  value={videoSettings.modelId}
+                  onValueChange={(val) => setVideoSettings(prev => ({ ...prev, modelId: val }))}
+                >
+                  <SelectTrigger className="bg-white/10 border-gray-600 text-white">
+                    <SelectValue placeholder="Selecione um modelo" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-900 border-gray-700 text-white">
+                    {AVAILABLE_MODELS.map(model => (
+                      <SelectItem key={model.id} value={model.id}>
+                        {model.displayName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-gray-300">Proporção</label>
+                  <Select
+                    value={videoSettings.aspectRatio}
+                    onValueChange={(val) => setVideoSettings(prev => ({ ...prev, aspectRatio: val }))}
+                  >
+                    <SelectTrigger className="bg-white/10 border-gray-600 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-900 border-gray-700 text-white">
+                      <SelectItem value="9:16">9:16 (Vertical)</SelectItem>
+                      <SelectItem value="16:9">16:9 (Horizontal)</SelectItem>
+                      <SelectItem value="1:1">1:1 (Quadrado)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-gray-300">Resolução</label>
+                  <Select
+                    value={videoSettings.resolution}
+                    onValueChange={(val) => setVideoSettings(prev => ({ ...prev, resolution: val }))}
+                  >
+                    <SelectTrigger className="bg-white/10 border-gray-600 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-900 border-gray-700 text-white">
+                      <SelectItem value="720p">720p HD</SelectItem>
+                      <SelectItem value="1080p">1080p FHD</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+      </div>
       {/* Project Summary */}
       <Card className="bg-white/5 border-gray-700 p-6">
         <div className="flex items-start gap-3">
