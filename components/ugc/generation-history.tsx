@@ -43,9 +43,9 @@ export default function UGCGenerationHistory() {
     onConnected: (data) => {
       console.log("[UGC] SSE Connected:", data);
       setSseConnected(true);
-      toast.success("Real-time updates enabled", {
-        description: "You'll receive instant notifications when videos are ready",
-      });
+      // toast.success("Real-time updates enabled", {
+      //   description: "You'll receive instant notifications when videos are ready",
+      // });
     },
     onGenerationCompleted: (data) => {
       console.log("[UGC] Generation completed via SSE:", data);
