@@ -4,7 +4,11 @@ import type { User } from "@/db/schema"
 
 export async function getSession() {
   const cookieStore = await cookies()
-  const sessionToken = cookieStore.get("better-auth.session_token")?.value
+  const secureCookie = cookieStore.get("__Secure-better-auth.session_token")
+  const standardCookie = cookieStore.get("better-auth.session_token")
+
+  const sessionToken = secureCookie?.value || standardCookie?.value
+  const cookieName = secureCookie ? "__Secure-better-auth.session_token" : "better-auth.session_token"
 
   if (!sessionToken) {
     return null
@@ -13,7 +17,7 @@ export async function getSession() {
   try {
     const session = await auth.api.getSession({
       headers: {
-        cookie: `better-auth.session_token=${sessionToken}`,
+        cookie: `${cookieName}=${sessionToken}`,
       },
     })
 
