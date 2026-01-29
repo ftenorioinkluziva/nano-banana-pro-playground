@@ -38,6 +38,11 @@ export function ScriptForm({ onScriptGenerated, isGenerating, setIsGenerating, d
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Gallery State
+  const [uploadMethod, setUploadMethod] = useState<"upload" | "gallery">("upload")
+  const [galleryImages, setGalleryImages] = useState<any[]>([])
+  const [isLoadingGallery, setIsLoadingGallery] = useState(false)
+
   // Fetch products
   useEffect(() => {
     async function fetchProducts() {
@@ -53,6 +58,52 @@ export function ScriptForm({ onScriptGenerated, isGenerating, setIsGenerating, d
     }
     fetchProducts()
   }, [t.errorLoadingProducts])
+
+  // Fetch Gallery Images
+  useEffect(() => {
+    if (uploadMethod === "gallery" && galleryImages.length === 0) {
+      async function fetchGallery() {
+        setIsLoadingGallery(true)
+        try {
+          const response = await fetch("/api/get-generations?limit=20")
+          if (!response.ok) throw new Error("Failed to fetch gallery")
+          const data = await response.json()
+          // Filter only successfully generated images
+          const images = data.generations.filter((g: any) => g.image_url && g.status === 'complete')
+          setGalleryImages(images)
+        } catch (error) {
+          console.error("Error fetching gallery:", error)
+          toast.error("Failed to load gallery images")
+        } finally {
+          setIsLoadingGallery(false)
+        }
+      }
+      fetchGallery()
+    }
+  }, [uploadMethod, galleryImages.length])
+
+  const handleGalleryImageSelect = async (imageUrl: string) => {
+    try {
+      // Show loading or optimism?
+      // For now, let's just set preview and fetch in background? 
+      // No, we need the File object for valid state.
+
+      const toastId = toast.loading(t.downloadingImage || "Processing image...")
+
+      // Use proxy to avoid CORS
+      const response = await fetch(`/api/download-image?url=${encodeURIComponent(imageUrl)}`)
+      if (!response.ok) throw new Error("Failed to download image")
+
+      const blob = await response.blob()
+      const file = new File([blob], "gallery_image.png", { type: blob.type })
+
+      processFile(file)
+      toast.dismiss(toastId)
+    } catch (error) {
+      console.error("Error processing gallery image:", error)
+      toast.error(t.errorProcessingImage || "Failed to process image")
+    }
+  }
 
   // Get unique brands from products
   const brands = Array.from(new Set(products.map(p => p.brand_id).filter(id => id !== null)))
@@ -238,43 +289,105 @@ export function ScriptForm({ onScriptGenerated, isGenerating, setIsGenerating, d
           </label>
           <p className="text-xs text-gray-400">{t.personaPhotoDesc}</p>
 
-          {!personaPreview ? (
-            <div
-              onClick={() => !disabled && fileInputRef.current?.click()}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${isDragging
-                ? "border-white bg-white/10"
-                : "border-gray-600 hover:border-gray-500"
-                } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+          {/* Tabs for Upload Method */}
+          <div className="flex gap-4 border-b border-gray-700">
+            <button
+              type="button"
+              onClick={() => {
+                setUploadMethod("upload")
+                // Don't clear image when switching tabs, only if user explicitly clears
+              }}
+              className={`pb-2 text-sm font-medium transition-colors ${uploadMethod === "upload"
+                ? "text-white border-b-2 border-white"
+                : "text-gray-400 hover:text-gray-300"
+                }`}
             >
-              <svg
-                className={`mx-auto h-12 w-12 ${isDragging ? "text-white" : "text-gray-400"}`}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
+              {t.uploadPhoto || "Upload Photo"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setUploadMethod("gallery")}
+              className={`pb-2 text-sm font-medium transition-colors ${uploadMethod === "gallery"
+                ? "text-white border-b-2 border-white"
+                : "text-gray-400 hover:text-gray-300"
+                }`}
+            >
+              {t.selectFromGallery || "Select from Gallery"}
+            </button>
+          </div>
+
+          {!personaPreview ? (
+            uploadMethod === "upload" ? (
+              <div
+                onClick={() => !disabled && fileInputRef.current?.click()}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${isDragging
+                  ? "border-white bg-white/10"
+                  : "border-gray-600 hover:border-gray-500"
+                  } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
-              <p className={`mt-2 text-sm ${isDragging ? "text-white" : "text-gray-400"}`}>
-                {isDragging ? t.dropImageHere : t.clickToUpload}
-              </p>
-              <p className="text-xs text-gray-500 mt-1">{t.imageRequirements}</p>
-            </div>
+                <svg
+                  className={`mx-auto h-12 w-12 ${isDragging ? "text-white" : "text-gray-400"}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+                <p className={`mt-2 text-sm ${isDragging ? "text-white" : "text-gray-400"}`}>
+                  {isDragging ? t.dropImageHere : t.clickToUpload}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">{t.imageRequirements}</p>
+              </div>
+            ) : (
+              <div className="border border-gray-700 rounded-lg p-4 max-h-[400px] overflow-y-auto bg-black/20">
+                {isLoadingGallery ? (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                  </div>
+                ) : galleryImages.length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {galleryImages.map((img) => (
+                      <div
+                        key={img.id}
+                        className="relative aspect-square cursor-pointer group rounded-md overflow-hidden border border-gray-800 hover:border-white transition-all"
+                        onClick={() => handleGalleryImageSelect(img.image_url)}
+                      >
+                        <img
+                          src={img.image_url}
+                          alt={img.description || "Gallery image"}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                          <span className="text-white text-xs font-medium bg-black/60 px-2 py-1 rounded">Select</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-400">
+                    <p>{t.noImagesFound || "No images found in your gallery"}</p>
+                    <p className="text-xs mt-1">{t.generateImagesFirst || "Generate images to use them here"}</p>
+                  </div>
+                )}
+              </div>
+            )
           ) : (
             <div className="relative">
-              <img src={personaPreview} alt="Persona preview" className="w-full h-48 object-cover rounded-lg" />
+              <img src={personaPreview} alt="Persona preview" className="w-full h-64 object-contain bg-black/50 rounded-lg border border-gray-700" />
               <button
                 type="button"
                 onClick={handleClearImage}
                 disabled={disabled}
-                className="absolute top-2 right-2 p-2 bg-red-500 hover:bg-red-600 text-white rounded-full transition-colors"
+                className="absolute top-2 right-2 p-2 bg-red-500 hover:bg-red-600 text-white rounded-full transition-colors shadow-lg"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
