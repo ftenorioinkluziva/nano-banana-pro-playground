@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { Upload, Trash2, Sparkles } from "lucide-react"
+import { Upload, Trash2, Sparkles, Image as ImageIcon, Loader2 } from "lucide-react"
 import type {
   GenerateVideoParams,
   ImageFile,
@@ -108,6 +108,66 @@ export function VideoGenerationForm({
 
   const imagesInputRef = useRef<HTMLInputElement>(null)
   const videosInputRef = useRef<HTMLInputElement>(null)
+
+  // Gallery State
+  const [uploadMethod, setUploadMethod] = useState<"upload" | "gallery">("upload")
+  const [galleryImages, setGalleryImages] = useState<any[]>([])
+  const [isLoadingGallery, setIsLoadingGallery] = useState(false)
+
+  // Fetch Gallery Images
+  useEffect(() => {
+    if (uploadMethod === "gallery" && galleryImages.length === 0) {
+      async function fetchGallery() {
+        setIsLoadingGallery(true)
+        try {
+          // Fetch from your API that returns user's generations
+          const response = await fetch("/api/get-generations?limit=50")
+          if (!response.ok) throw new Error("Failed to fetch gallery")
+          const data = await response.json()
+          // Filter only successfully generated images
+          const images = data.generations.filter((g: any) => g.image_url && g.status === 'complete')
+          setGalleryImages(images)
+        } catch (error) {
+          console.error("Error fetching gallery:", error)
+          // optional toast.error("Failed to load gallery")
+        } finally {
+          setIsLoadingGallery(false)
+        }
+      }
+      fetchGallery()
+    }
+  }, [uploadMethod, galleryImages.length])
+
+  const handleGalleryImageSelect = async (imageUrl: string) => {
+    try {
+      // We need to convert the URL to a File object because underlying logic expects ImageFile { file, base64 }
+      // The backend will likely need the base64 or file upload. 
+      // Ideally we would just pass the URL, but let's stick to the current pattern of ImageFile for consistency
+
+      const response = await fetch(`/api/download-image?url=${encodeURIComponent(imageUrl)}`)
+      if (!response.ok) throw new Error("Failed to download image")
+
+      const blob = await response.blob()
+      const file = new File([blob], "gallery_image.png", { type: blob.type })
+
+      const imageFile = await fileToImageFile(file)
+
+      // If single image required (max 1), replace current
+      if (currentGenerationType?.inputs.images?.max === 1) {
+        setImages([imageFile])
+      } else {
+        setImages(prev => [...prev, imageFile])
+      }
+
+      // Switch back to upload view to show the selected image
+      // or stay in gallery? Let's stay in gallery but show specific feedback or let user switch manually
+      // Actually, ScriptForm logic (which I wrote before) just adds it. 
+      // Let's notify user visually?
+
+    } catch (error) {
+      console.error("Error selecting gallery image:", error)
+    }
+  }
 
   // Update generation type when model changes
   useEffect(() => {
@@ -577,22 +637,99 @@ export function VideoGenerationForm({
       {/* Files */}
       {currentGenerationType?.inputs.images && (
         <div className="space-y-4 border border-zinc-800 p-4 rounded-lg">
-          <Label>{t.images}</Label>
-          <div className="flex flex-wrap gap-2">
-            {images.map((img, idx) => (
-              <div key={idx} className="relative w-20 h-20">
-                <img src={URL.createObjectURL(img.file)} className="w-full h-full object-cover rounded" alt="Upload" />
-                <button onClick={() => removeImage(idx)} className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1"><Trash2 size={12} /></button>
-              </div>
-            ))}
-            <button
-              onClick={() => imagesInputRef.current?.click()}
-              className="w-20 h-20 border-2 border-dashed border-zinc-800 rounded flex items-center justify-center hover:border-zinc-700"
-            >
-              <Upload size={20} className="text-zinc-500" />
-            </button>
+          <div className="flex justify-between items-center mb-2">
+            <Label>{t.images}</Label>
+
+            {/* Tabs for Upload Method */}
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={() => setUploadMethod("upload")}
+                className={`text-xs font-medium transition-colors flex items-center gap-1 ${uploadMethod === "upload"
+                    ? "text-white"
+                    : "text-zinc-500 hover:text-zinc-300"
+                  }`}
+              >
+                <Upload size={12} />
+                {t.upload || "Upload"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setUploadMethod("gallery")}
+                className={`text-xs font-medium transition-colors flex items-center gap-1 ${uploadMethod === "gallery"
+                    ? "text-white"
+                    : "text-zinc-500 hover:text-zinc-300"
+                  }`}
+              >
+                <ImageIcon size={12} />
+                {t.gallery || "Galeria"}
+              </button>
+            </div>
           </div>
-          <input ref={imagesInputRef} type="file" multiple className="hidden" onChange={handleImagesChange} accept="image/*" />
+
+          {/* Selected Images Preview (Always Visible) */}
+          {images.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-4">
+              {images.map((img, idx) => (
+                <div key={idx} className="relative w-20 h-20 group">
+                  <img src={URL.createObjectURL(img.file)} className="w-full h-full object-cover rounded border border-zinc-700" alt="Selected" />
+                  <button onClick={() => removeImage(idx)} className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Upload Area */}
+          {uploadMethod === "upload" ? (
+            <div>
+              <button
+                onClick={() => imagesInputRef.current?.click()}
+                className="w-full h-32 border-2 border-dashed border-zinc-800 rounded-lg flex flex-col items-center justify-center hover:border-zinc-700 transition-colors bg-zinc-900/50"
+              >
+                <Upload size={24} className="text-zinc-500 mb-2" />
+                <span className="text-xs text-zinc-500">{t.clickToUpload || "Click to upload image"}</span>
+              </button>
+              <input ref={imagesInputRef} type="file" multiple className="hidden" onChange={handleImagesChange} accept="image/*" />
+            </div>
+          ) : (
+            /* Gallery Grid */
+            <div className="space-y-2">
+              {isLoadingGallery ? (
+                <div className="h-32 flex items-center justify-center">
+                  <Loader2 className="animate-spin text-zinc-500" />
+                </div>
+              ) : galleryImages.length > 0 ? (
+                <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                  {galleryImages.map((img: any) => (
+                    <button
+                      key={img.id}
+                      type="button"
+                      onClick={() => handleGalleryImageSelect(img.image_url)}
+                      className="relative aspect-square group rounded-md overflow-hidden border border-zinc-800 hover:border-white transition-all focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                      <img
+                        src={img.image_url}
+                        alt={img.prompt || "Gallery Image"}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                      {/* Overlay */}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <span className="text-xs text-white font-medium">+ Add</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="h-32 flex flex-col items-center justify-center text-zinc-500 text-xs">
+                  <ImageIcon size={24} className="mb-2 opacity-50" />
+                  <p>No generated images found.</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

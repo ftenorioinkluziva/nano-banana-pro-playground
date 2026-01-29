@@ -229,60 +229,68 @@ export function ScriptViewer({ script, scriptId, onScriptChange }: ScriptViewerP
               Configurações de Vídeo
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-80 bg-black/90 border-gray-700 text-white p-4">
-            <div className="space-y-4">
-              <h4 className="font-medium leading-none mb-2">Configurações de Geração</h4>
-              <p className="text-xs text-gray-400 mb-4">Essas configurações serão aplicadas a todas as novas gerações de cena.</p>
-
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-gray-300">Modelo de Vídeo</label>
-                <Select
-                  value={videoSettings.modelId}
-                  onValueChange={(val) => setVideoSettings(prev => ({ ...prev, modelId: val }))}
-                >
-                  <SelectTrigger className="bg-white/10 border-gray-600 text-white">
-                    <SelectValue placeholder="Selecione um modelo" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-900 border-gray-700 text-white">
-                    {AVAILABLE_MODELS.map(model => (
-                      <SelectItem key={model.id} value={model.id}>
-                        {model.displayName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+          <PopoverContent className="w-80 bg-zinc-950 border-zinc-800 text-white p-5 shadow-2xl">
+            <div className="space-y-5">
+              <div className="space-y-1">
+                <h4 className="font-semibold text-sm text-white">Configurações de Geração</h4>
+                <p className="text-[11px] text-zinc-400">Aplicadas a novas gerações de cena</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-xs font-medium text-gray-300">Proporção</label>
+                  <label className="text-xs font-medium text-zinc-300 flex items-center gap-2">
+                    <span className="text-purple-400">🤖</span> Modelo
+                  </label>
                   <Select
-                    value={videoSettings.aspectRatio}
-                    onValueChange={(val) => setVideoSettings(prev => ({ ...prev, aspectRatio: val }))}
+                    value={videoSettings.modelId}
+                    onValueChange={(val) => setVideoSettings(prev => ({ ...prev, modelId: val }))}
                   >
-                    <SelectTrigger className="bg-white/10 border-gray-600 text-white">
-                      <SelectValue />
+                    <SelectTrigger className="bg-zinc-900 border-zinc-700 text-white h-9">
+                      <SelectValue placeholder="Selecione um modelo" />
                     </SelectTrigger>
-                    <SelectContent className="bg-gray-900 border-gray-700 text-white">
-                      <SelectItem value="9:16">9:16 (Vertical)</SelectItem>
-                      <SelectItem value="16:9">16:9 (Horizontal)</SelectItem>
-                      <SelectItem value="1:1">1:1 (Quadrado)</SelectItem>
+                    <SelectContent className="bg-zinc-900 border-zinc-700 text-white">
+                      {AVAILABLE_MODELS.map(model => (
+                        <SelectItem key={model.id} value={model.id} className="focus:bg-zinc-800 focus:text-white">
+                          {model.displayName}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-medium text-gray-300">Resolução</label>
+                  <label className="text-xs font-medium text-zinc-300 flex items-center gap-2">
+                    <span className="text-blue-400">📐</span> Proporção
+                  </label>
+                  <Select
+                    value={videoSettings.aspectRatio}
+                    onValueChange={(val) => setVideoSettings(prev => ({ ...prev, aspectRatio: val }))}
+                  >
+                    <SelectTrigger className="bg-zinc-900 border-zinc-700 text-white h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-900 border-zinc-700 text-white">
+                      <SelectItem value="9:16" className="focus:bg-zinc-800 focus:text-white">9:16 (Vertical - Reels/TikTok)</SelectItem>
+                      <SelectItem value="16:9" className="focus:bg-zinc-800 focus:text-white">16:9 (Horizontal - YouTube)</SelectItem>
+                      <SelectItem value="1:1" className="focus:bg-zinc-800 focus:text-white">1:1 (Quadrado - Feed)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-zinc-300 flex items-center gap-2">
+                    <span className="text-green-400">🖥️</span> Resolução
+                  </label>
                   <Select
                     value={videoSettings.resolution}
                     onValueChange={(val) => setVideoSettings(prev => ({ ...prev, resolution: val }))}
                   >
-                    <SelectTrigger className="bg-white/10 border-gray-600 text-white">
+                    <SelectTrigger className="bg-zinc-900 border-zinc-700 text-white h-9">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-gray-900 border-gray-700 text-white">
-                      <SelectItem value="720p">720p HD</SelectItem>
-                      <SelectItem value="1080p">1080p FHD</SelectItem>
+                    <SelectContent className="bg-zinc-900 border-zinc-700 text-white">
+                      <SelectItem value="720p" className="focus:bg-zinc-800 focus:text-white">720p HD</SelectItem>
+                      <SelectItem value="1080p" className="focus:bg-zinc-800 focus:text-white">1080p Full HD</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
