@@ -54,7 +54,7 @@ REGRAS DE CRIAÇÃO DO PROMPT:
   `
 
   try {
-    const model = google("gemini-1.5-flash")
+    const model = google("gemini-2.5-flash-lite")
 
     const result = await generateText({
       model,
