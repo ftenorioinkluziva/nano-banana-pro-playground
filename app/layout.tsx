@@ -1,4 +1,5 @@
 import type React from "react"
+import "sonner/dist/styles.css"
 import type { Metadata } from "next"
 import { Inter, JetBrains_Mono } from "next/font/google"
 import { Suspense } from "react"
